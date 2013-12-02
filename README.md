@@ -1,29 +1,6 @@
-# FlexColumns
+# flex_columns
 
-TODO: Write a gem description
-
-## Installation
-
-Add this line to your application's Gemfile:
-
-    gem 'flex_columns'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install flex_columns
-
-## Usage
-
-TODO: Write usage instructions here
-
-## Contributing
-
-1. Fork it
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create new Pull Request
+`flex_columns` gives you the flexibility of schema-free columns on top of a proven relational database. It adds
+additional niceties on top of a simple JSON-based serialization mechanism, attempting to walk a nice line between
+being completely free (and letting you clutter up your database with garbage) and being so restrictive that you
+might as well just add columns to your schema in the first place.
