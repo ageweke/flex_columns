@@ -3,7 +3,7 @@ lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'flex_columns/version'
 
-Gem::Specification.new do |spec|
+Gem::Specification.new do |s|
   s.name          = "flex_columns"
   s.version       = FlexColumns::VERSION
   s.authors       = ["Andrew Geweke"]

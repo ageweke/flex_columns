@@ -1,5 +1,3 @@
-require 'flex_columns/version_support'
-
 module FlexColumns
   module Helpers
     class DatabaseHelper
