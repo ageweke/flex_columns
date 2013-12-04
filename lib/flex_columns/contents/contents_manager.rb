@@ -13,6 +13,12 @@ module FlexColumns
         contents[flex_column_name] ||= FlexColumns::Contents::BaseContents.new(model_instance, definition)
       end
 
+      def serialize!
+        @contents.each do |flex_column_name, contents|
+          contents.serialize!
+        end
+      end
+
       private
       attr_reader :model_instance, :contents
 

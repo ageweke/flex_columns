@@ -23,6 +23,8 @@ describe "FlexColumns basic operations" do
         end
       end
 
+      define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
+
       user = ::User.new
       user.name = 'User 1'
       user.user_attributes['wants_email'] = 'sometimes'
@@ -30,6 +32,19 @@ describe "FlexColumns basic operations" do
       user.save!
 
       user.user_attributes['wants_email'].should == 'sometimes'
+
+      bd = ::UserBackdoor.find(user.id)
+      bd.should be
+      bd.id.should == user.id
+
+      string = bd.user_attributes
+      string.should be
+      string.length.should > 0
+
+      contents = JSON.parse(string)
+      contents.class.should == Hash
+      contents.keys.should == %w{wants_email}
+      contents['wants_email'].should == 'sometimes'
     end
   end
 end

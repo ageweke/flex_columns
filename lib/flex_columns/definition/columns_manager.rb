@@ -28,16 +28,12 @@ module FlexColumns
         method_name = method_name.to_s.strip.downcase
         direct_methods_defined << method_name unless direct_methods_defined.include?(method_name)
 
-        $stderr.puts "Defining direct method: #{method_name.inspect}"
-
         model_class.send(:define_method, method_name, &block)
       end
 
       def define_dynamic_method!(method_name, &block)
         method_name = method_name.to_s.strip.downcase
         self.dynamic_methods_defined << method_name unless dynamic_methods_defined.include?(method_name)
-
-        $stderr.puts "Defining dynamic method: #{method_name.inspect}"
 
         methods_module.send(:define_method, method_name, &block)
       end

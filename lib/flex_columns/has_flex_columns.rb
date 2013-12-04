@@ -7,8 +7,16 @@ module FlexColumns
   module HasFlexColumns
     extend ActiveSupport::Concern
 
+    included do
+      before_save :serialize_flex_columns!
+    end
+
     def _flex_columns_contents_manager
       @_flex_columns_contents_manager ||= FlexColumns::Contents::ContentsManager.new(self)
+    end
+
+    def serialize_flex_columns!
+      _flex_columns_contents_manager.serialize!
     end
 
     module ClassMethods

@@ -1,3 +1,5 @@
+require 'json'
+
 module FlexColumns
   module Contents
     class BaseContents
@@ -16,6 +18,10 @@ module FlexColumns
       def []=(field_name, new_value)
         assert_valid_field_name!(field_name)
         fields[field_name] = new_value
+      end
+
+      def serialize!
+        @model_instance[column_definition.flex_column_name] = JSON.dump(fields)
       end
 
       private
