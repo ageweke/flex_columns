@@ -10,7 +10,8 @@ module FlexColumns
 
       def contents_for(flex_column_name)
         definition = columns_manager.column_definition(flex_column_name) # so it'll raise if not present
-        contents[flex_column_name] ||= FlexColumns::Contents::BaseContents.new(model_instance, definition)
+        contents[flex_column_name] ||= definition.contents_class.new(model_instance, definition)
+        # FlexColumns::Contents::BaseContents.new(model_instance, definition)
       end
 
       def serialize!

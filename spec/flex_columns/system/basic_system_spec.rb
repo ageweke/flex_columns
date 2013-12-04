@@ -59,5 +59,27 @@ describe "FlexColumns basic operations" do
       contents.keys.should == %w{wants_email}
       contents['wants_email'].should == 'sometimes'
     end
+
+    it "should provide access to attributes as methods" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.user_attributes.wants_email = 'sometimes'
+      user.user_attributes.wants_email.should == 'sometimes'
+      user.user_attributes['wants_email'].should == 'sometimes'
+      user.save!
+
+      user.user_attributes.wants_email.should == 'sometimes'
+
+      user2 = ::User.find(user.id)
+      user2.user_attributes.wants_email.should == 'sometimes'
+      user2.user_attributes.keys.should == %w{wants_email}
+    end
+
+    it "should have a reasonable class name for contents" do
+      class_name = ::User.new.user_attributes.class.name
+      class_name.should match(/^user::/i)
+      class_name.should match(/userattributes/i)
+      class_name.should match(/flexcontents/i)
+    end
   end
 end

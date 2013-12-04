@@ -3,6 +3,8 @@ require 'flex_columns/definition/column_definition'
 module FlexColumns
   module Definition
     class ColumnsManager
+      attr_reader :model_class
+
       def initialize(model_class)
         @model_class = model_class
         @column_definitions = [ ]
@@ -39,7 +41,7 @@ module FlexColumns
       end
 
       private
-      attr_reader :model_class, :direct_methods_defined
+      attr_reader :direct_methods_defined
       attr_accessor :methods_module, :dynamic_methods_defined, :column_definitions
 
       def sync_methods!
