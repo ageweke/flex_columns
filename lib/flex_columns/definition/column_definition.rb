@@ -23,6 +23,18 @@ module FlexColumns
         columns_manager.define_direct_method!(flex_column_name) do
           _flex_columns_contents_manager.contents_for(fcn)
         end
+
+        fields.keys.each do |field_name|
+          columns_manager.define_dynamic_method!(field_name) do
+            contents = send(fcn)
+            contents.send(field_name)
+          end
+
+          columns_manager.define_dynamic_method!("#{field_name}=") do |x|
+            contents = send(fcn)
+            contents.send("#{field_name}=", x)
+          end
+        end
       end
 
       def contents_class

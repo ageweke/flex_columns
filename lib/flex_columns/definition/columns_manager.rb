@@ -35,7 +35,7 @@ module FlexColumns
 
       def define_dynamic_method!(method_name, &block)
         method_name = method_name.to_s.strip.downcase
-        self.dynamic_methods_defined << method_name unless dynamic_methods_defined.include?(method_name)
+        dynamic_methods_defined << method_name unless dynamic_methods_defined.include?(method_name)
 
         methods_module.send(:define_method, method_name, &block)
       end

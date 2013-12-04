@@ -75,6 +75,21 @@ describe "FlexColumns basic operations" do
       user2.user_attributes.keys.should == %w{wants_email}
     end
 
+    it "should delegate methods to attributes automatically" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = 'sometimes'
+      user.wants_email.should == 'sometimes'
+      user.user_attributes['wants_email'].should == 'sometimes'
+      user.save!
+
+      user.wants_email.should == 'sometimes'
+
+      user2 = ::User.find(user.id)
+      user2.wants_email.should == 'sometimes'
+      user2.user_attributes.keys.should == %w{wants_email}
+    end
+
     it "should have a reasonable class name for contents" do
       class_name = ::User.new.user_attributes.class.name
       class_name.should match(/^user::/i)
