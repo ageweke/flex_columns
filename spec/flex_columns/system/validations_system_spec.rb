@@ -17,28 +17,26 @@ describe "FlexColumns validations" do
     drop_standard_system_spec_tables!
   end
 
-  context "with a very simple column definition" do
-    it "should allow validating fields in the column definition" do
-      define_model_class(:User, 'flexcols_spec_users') do
-        flex_column :user_attributes do
-          field :wants_email
+  it "should allow validating fields in the column definition" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes do
+        field :wants_email
 
-          validates :wants_email, :presence => true
-        end
+        validates :wants_email, :presence => true
       end
-
-      user = ::User.new
-      user.name = 'User 1'
-
-      e = capture_exception(::ActiveRecord::RecordInvalid) { user.save! }
-
-      e.record.should be(user)
-      e.record.errors.keys.should == [ :'user_attributes.wants_email' ]
-      messages = e.record.errors.get(:'user_attributes.wants_email')
-      messages.length.should == 1
-
-      message = messages[0]
-      message.should match(/be blank/i)
     end
+
+    user = ::User.new
+    user.name = 'User 1'
+
+    e = capture_exception(::ActiveRecord::RecordInvalid) { user.save! }
+
+    e.record.should be(user)
+    e.record.errors.keys.should == [ :'user_attributes.wants_email' ]
+    messages = e.record.errors.get(:'user_attributes.wants_email')
+    messages.length.should == 1
+
+    message = messages[0]
+    message.should match(/be blank/i)
   end
 end
