@@ -1,3 +1,6 @@
+require 'active_support'
+require 'active_support/core_ext'
+
 module FlexColumns
   module Definition
     class ColumnDefinition
@@ -7,10 +10,20 @@ module FlexColumns
         @columns_manager = columns_manager
         @flex_column_name = flex_column_name.to_s.strip.downcase
         @options = options
+        @has_validations = false
 
         @fields = { }
 
         instance_eval(&block)
+      end
+
+      def has_validations?
+        !! has_validations
+      end
+
+      def validates(*args, &block)
+        @has_validations = true
+        contents_class.validates(*args, &block)
       end
 
       def has_field?(field_name)
@@ -42,27 +55,24 @@ module FlexColumns
           out = Class.new(FlexColumns::Contents::BaseContents)
           name = "#{flex_column_name.camelize}FlexContents".to_sym
           model_class.const_set(name, out)
-
-          fields.keys.each do |field_name|
-            out.send(:define_method, field_name) do
-              self[field_name]
-            end
-
-            out.send(:define_method, "#{field_name}=") do |x|
-              self[field_name] = x
-            end
-          end
-
-          out
         end
       end
 
       def field(name)
-        fields[name.to_s.strip.downcase] = true
+        name = name.to_s.strip.downcase
+        fields[name] = true
+
+        contents_class.send(:define_method, name) do
+          self[name]
+        end
+
+        contents_class.send(:define_method, "#{name}=") do |x|
+          self[name] = x
+        end
       end
 
       private
-      attr_reader :columns_manager, :fields
+      attr_reader :columns_manager, :fields, :has_validations
 
       def model_class
         columns_manager.model_class

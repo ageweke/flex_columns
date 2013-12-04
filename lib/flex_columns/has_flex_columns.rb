@@ -8,15 +8,20 @@ module FlexColumns
     extend ActiveSupport::Concern
 
     included do
-      before_save :serialize_flex_columns!
+      before_validation :flex_columns_before_validation!
+      before_save :flex_columns_before_save!
     end
 
     def _flex_columns_contents_manager
       @_flex_columns_contents_manager ||= FlexColumns::Contents::ContentsManager.new(self)
     end
 
-    def serialize_flex_columns!
-      _flex_columns_contents_manager.serialize!
+    def flex_columns_before_save!
+      _flex_columns_contents_manager.before_save!
+    end
+
+    def flex_columns_before_validation!
+      _flex_columns_contents_manager.before_validation!
     end
 
     module ClassMethods

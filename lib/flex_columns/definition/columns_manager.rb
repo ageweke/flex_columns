@@ -20,6 +20,10 @@ module FlexColumns
         sync_methods!
       end
 
+      def all_column_definitions
+        column_definitions
+      end
+
       def column_definition(flex_column_name)
         flex_column_name = flex_column_name.to_s.strip.downcase
         out = column_definitions.detect { |cd| cd.flex_column_name == flex_column_name }

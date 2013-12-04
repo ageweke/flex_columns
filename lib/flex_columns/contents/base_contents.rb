@@ -3,6 +3,8 @@ require 'json'
 module FlexColumns
   module Contents
     class BaseContents
+      include ::ActiveModel::Validations
+
       def initialize(model_instance, column_definition)
         @model_instance = model_instance
         @column_definition = column_definition
@@ -25,6 +27,10 @@ module FlexColumns
       def keys
         deserialize_if_necessary!
         fields.keys
+      end
+
+      def to_model
+        self
       end
 
       def serialize!
