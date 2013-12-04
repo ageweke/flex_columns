@@ -45,6 +45,10 @@ describe "FlexColumns basic operations" do
       contents.class.should == Hash
       contents.keys.should == %w{wants_email}
       contents['wants_email'].should == 'sometimes'
+
+      user2 = ::User.find(user.id)
+      user2.user_attributes['wants_email'].should == 'sometimes'
+      user2.user_attributes.keys.should == %w{wants_email}
     end
   end
 end
