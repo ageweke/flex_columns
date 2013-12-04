@@ -27,7 +27,7 @@ module FlexColumns
           drop_table :flexcols_spec_users rescue nil
           create_table :flexcols_spec_users do |t|
             t.string :name, :null => false
-            t.text :attributes
+            t.text :user_attributes
             t.text :more_attributes
           end
         end

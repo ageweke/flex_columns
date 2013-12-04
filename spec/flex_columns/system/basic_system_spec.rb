@@ -18,10 +18,15 @@ describe "FlexColumns basic operations" do
   describe "#flex_column" do
     it "should do something" do
       define_model_class(:User, 'flexcols_spec_users') do
-        flex_column :attributes do
-
+        flex_column :user_attributes do
+          field :wants_email
         end
       end
+
+      user = ::User.new
+      user.name = 'User 1'
+      user.user_attributes['wants_email'] = false
+      user.save!
     end
   end
 end
