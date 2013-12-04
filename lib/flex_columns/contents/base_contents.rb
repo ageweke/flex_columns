@@ -1,6 +1,6 @@
 module FlexColumns
   module Contents
-    class BaseFlexColumnContents
+    class BaseContents
       def initialize(model_instance, column_definition)
         @model_instance = model_instance
         @column_definition = column_definition

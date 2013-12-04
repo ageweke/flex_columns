@@ -1,4 +1,4 @@
-require 'flex_columns/contents/base_flex_column_contents'
+require 'flex_columns/contents/base_contents'
 
 module FlexColumns
   module Contents
@@ -10,7 +10,7 @@ module FlexColumns
 
       def contents_for(flex_column_name)
         definition = columns_manager.column_definition(flex_column_name) # so it'll raise if not present
-        contents[flex_column_name] ||= FlexColumns::Contents::BaseFlexColumnContents.new(model_instance, definition)
+        contents[flex_column_name] ||= FlexColumns::Contents::BaseContents.new(model_instance, definition)
       end
 
       private
