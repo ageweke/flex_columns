@@ -15,14 +15,16 @@ describe "FlexColumns basic operations" do
     drop_standard_system_spec_tables!
   end
 
-  describe "#flex_column" do
-    it "should do something" do
+  context "with a very simple column definition" do
+    before :each do
       define_model_class(:User, 'flexcols_spec_users') do
         flex_column :user_attributes do
           field :wants_email
         end
       end
+    end
 
+    it "should be able to serialize and deserialize a very simple example" do
       define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
 
       user = ::User.new
@@ -32,6 +34,17 @@ describe "FlexColumns basic operations" do
       user.save!
 
       user.user_attributes['wants_email'].should == 'sometimes'
+
+      user2 = ::User.find(user.id)
+      user2.user_attributes['wants_email'].should == 'sometimes'
+      user2.user_attributes.keys.should == %w{wants_email}
+    end
+
+    it "should store its data as standard JSON" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.user_attributes['wants_email'] = 'sometimes'
+      user.save!
 
       bd = ::UserBackdoor.find(user.id)
       bd.should be
@@ -45,10 +58,6 @@ describe "FlexColumns basic operations" do
       contents.class.should == Hash
       contents.keys.should == %w{wants_email}
       contents['wants_email'].should == 'sometimes'
-
-      user2 = ::User.find(user.id)
-      user2.user_attributes['wants_email'].should == 'sometimes'
-      user2.user_attributes.keys.should == %w{wants_email}
     end
   end
 end
