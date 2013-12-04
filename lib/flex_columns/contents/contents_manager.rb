@@ -1,3 +1,5 @@
+require 'flex_columns/contents/base_flex_column_contents'
+
 module FlexColumns
   module Contents
     class ContentsManager

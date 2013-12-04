@@ -12,15 +12,15 @@ module FlexColumns
 
       def flex_column(flex_column_name, options, &block)
         new_definition = FlexColumns::Definition::ColumnDefinition.new(self, flex_column_name, options, &block)
-        @column_definitions.delete_if { |cd| cd.flex_column_name == new_definition.flex_column_name }
-        @column_definitions << new_definition
+        column_definitions.delete_if { |cd| cd.flex_column_name == new_definition.flex_column_name }
+        column_definitions << new_definition
 
         sync_methods!
       end
 
       def column_definition(flex_column_name)
         flex_column_name = flex_column_name.to_s.strip.downcase
-        out = @column_definitions.detect { |cd| cd.flex_column_name == flex_column_name }
+        out = column_definitions.detect { |cd| cd.flex_column_name == flex_column_name }
         out || raise("No flex column '#{flex_column_name}' on #{model_class.inspect}")
       end
 

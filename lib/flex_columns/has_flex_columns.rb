@@ -1,5 +1,6 @@
 require 'active_record'
 require 'active_support/concern'
+require 'flex_columns/contents/contents_manager'
 require 'flex_columns/definition/flex_columns_manager'
 
 module FlexColumns

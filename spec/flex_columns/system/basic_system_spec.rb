@@ -25,8 +25,11 @@ describe "FlexColumns basic operations" do
 
       user = ::User.new
       user.name = 'User 1'
-      user.user_attributes['wants_email'] = false
+      user.user_attributes['wants_email'] = 'sometimes'
+      user.user_attributes['wants_email'].should == 'sometimes'
       user.save!
+
+      user.user_attributes['wants_email'].should == 'sometimes'
     end
   end
 end

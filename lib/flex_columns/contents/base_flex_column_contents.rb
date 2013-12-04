@@ -1,9 +1,9 @@
 module FlexColumns
   module Contents
     class BaseFlexColumnContents
-      def initialize(model_instance, flex_column_definition)
+      def initialize(model_instance, column_definition)
         @model_instance = model_instance
-        @flex_column_definition = flex_column_definition
+        @column_definition = column_definition
 
         deserialize!
       end
@@ -19,16 +19,16 @@ module FlexColumns
       end
 
       private
-      attr_reader :model_instance, :flex_column_definition
+      attr_reader :model_instance, :column_definition
       attr_accessor :fields
 
       def deserialize!
-        raw_data = model_instance[flex_column_definition]
+        raw_data = model_instance[column_definition]
         self.fields = { }
       end
 
       def assert_valid_field_name!(field_name)
-        raise "Invalid field name: #{field_name.inspect}" unless flex_column_definition.has_field?(field_name)
+        raise "Invalid field name: #{field_name.inspect}" unless column_definition.has_field?(field_name)
       end
     end
   end
