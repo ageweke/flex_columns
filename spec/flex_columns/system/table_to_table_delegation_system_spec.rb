@@ -56,8 +56,15 @@ describe "FlexColumns table-to-table delegation" do
 
     user = ::User.new
     user.name = 'User 1'
+
     user.attributes_1a.att1a_f1 = "foo"
     user.attributes_1a.att1a_f1.should == "foo"
+    user.att1a_f1.should == "foo"
+
+    user.att1a_f2 = "bar"
+    user.att1a_f2.should == "bar"
+    user.attributes_1a.att1a_f2.should == "bar"
+
     user.save!
 
     define_model_class(:UserBackdoor, "flexcols_spec_users") { }
@@ -77,6 +84,8 @@ describe "FlexColumns table-to-table delegation" do
     s.length.should > 0
 
     h = JSON.parse(s)
-    h.keys.should == [ 'att1a_f1' ]
+    h.keys.should == [ 'att1a_f1', 'att1a_f2' ]
+    h['att1a_f1'].should == 'foo'
+    h['att1a_f2'].should == 'bar'
   end
 end

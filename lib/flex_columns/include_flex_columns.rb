@@ -5,6 +5,10 @@ module FlexColumns
     extend ::ActiveSupport::Concern
 
     module ClassMethods
+      def _included_flex_columns_dynamic_methods_module
+        @_included_flex_columns_dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :IncludedFlexColumnsDynamicMethods)
+      end
+
       def include_flex_columns_from(association_name, options = { })
         association = reflect_on_association(association_name.to_sym)
         unless association

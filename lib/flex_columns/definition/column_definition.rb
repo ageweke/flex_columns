@@ -78,6 +78,10 @@ module FlexColumns
         end
       end
 
+      def all_fields
+        @fields.values
+      end
+
       def field(name, *args)
         field_definition = FlexColumns::Definition::FieldDefinition.new(self, name, *args)
         field_definition.define_methods_on_flex_column!
