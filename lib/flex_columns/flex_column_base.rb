@@ -80,6 +80,8 @@ That column is of type: #{column.type.inspect}.}
         @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
 
         @dynamic_methods_module.remove_all_methods!
+        model_class._flex_column_dynamic_methods_module.remove_all_methods!
+
         @fields.values.each do |field_definition|
           field_definition.add_methods_to_flex_column_class!(@dynamic_methods_module)
           field_definition.add_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)

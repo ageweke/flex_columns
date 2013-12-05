@@ -24,5 +24,7 @@ module FlexColumns
       super(name, &block)
       @methods_defined[name] = true
     end
+
+    public :private # teehee
   end
 end
