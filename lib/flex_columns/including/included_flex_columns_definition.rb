@@ -12,7 +12,7 @@ module FlexColumns
 
       def include_flex_columns_from(association_name, options = { })
         association_name = association_name.to_sym
-        association = association_for(association_name, options)
+        association = association_for(association_name)
 
         includes[association_name] = options
 
@@ -24,43 +24,49 @@ module FlexColumns
 
       def sync_delegations!
         @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(delegating_class, :IncludedFlexColumnsDynamicMethods)
-
         dynamic_methods_module.remove_all_methods!
 
         includes.each do |association_name, options|
-          association = association_for(association_name, options)
+          association = association_for(association_name)
 
           association.klass._flex_columns_manager.all_column_definitions.each do |column_definition|
-            fcn = column_definition.flex_column_name
-
-            dynamic_methods_module.define_method(fcn) do
-              associated_model = send(association_name) || send("build_#{association_name}")
-              associated_model.send(fcn)
-            end
-
-            column_definition.all_fields.each do |field_definition|
-              fdn = field_definition.name
-
-              dynamic_methods_module.define_method(fdn) do
-                flex_contents = send(fcn)
-                flex_contents.send(fdn)
-              end
-
-              dynamic_methods_module.define_method("#{fdn}=") do |x|
-                flex_contents = send(fcn)
-                raise "no flex contents for #{fdn.inspect}?" unless flex_contents
-                flex_contents.send("#{fdn}=", x)
-              end
-            end
+            define_methods_for_flex_column(association_name, column_definition, options)
           end
         end
       end
 
-      def association_for(association_name, options)
+      def define_methods_for_flex_column(association_name, column_definition, options)
+        fcn = column_definition.flex_column_name
+
+        dynamic_methods_module.define_method(fcn) do
+          associated_model = send(association_name) || send("build_#{association_name}")
+          associated_model.send(fcn)
+        end
+
+        column_definition.all_fields.each do |field_definition|
+          fdn = field_definition.name
+
+          dynamic_methods_module.define_method(fdn) do
+            flex_contents = send(fcn)
+            flex_contents.send(fdn)
+          end
+
+          dynamic_methods_module.define_method("#{fdn}=") do |x|
+            flex_contents = send(fcn)
+            raise "no flex contents for #{fdn.inspect}?" unless flex_contents
+            flex_contents.send("#{fdn}=", x)
+          end
+        end
+      end
+
+      def association_for(association_name)
         association = delegating_class.reflect_on_association(association_name.to_sym)
         unless association
-          delegating_class.has_one(association_name, options)
-          association = delegating_class.reflect_on_association(association_name.to_sym)
+          raise %{You're trying to include_flex_columns_from in class #{delegating_class.name}, using the association
+named #{association_name.inspect}. However, there is no such association.
+
+You need to define an association (using has_one) before you can automatically include
+flex columns from the target class.}
         end
 
         unless association.macro == :has_one
