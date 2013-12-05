@@ -30,14 +30,14 @@ module FlexColumns
         out || raise("No flex column '#{flex_column_name}' on #{model_class.inspect}")
       end
 
-      def define_direct_method!(method_name, &block)
+      def define_direct_method_on_model_class!(method_name, &block)
         method_name = method_name.to_s.strip.downcase
         direct_methods_defined << method_name unless direct_methods_defined.include?(method_name)
 
         model_class.send(:define_method, method_name, &block)
       end
 
-      def define_dynamic_method!(method_name, &block)
+      def define_dynamic_method_on_model_class!(method_name, &block)
         method_name = method_name.to_s.strip.downcase
         dynamic_methods_defined << method_name unless dynamic_methods_defined.include?(method_name)
 

@@ -11,22 +11,22 @@ module FlexColumns
       end
 
       def [](field_name)
-        assert_valid_field_name!(field_name)
+        field_name = validate_field_name(field_name)
         deserialize_if_necessary!
 
-        fields[field_name]
+        field_data[field_name]
       end
 
       def []=(field_name, new_value)
-        assert_valid_field_name!(field_name)
+        field_name = validate_field_name(field_name)
         deserialize_if_necessary!
 
-        fields[field_name] = new_value
+        field_data[field_name] = new_value
       end
 
       def keys
         deserialize_if_necessary!
-        fields.keys
+        field_data.keys
       end
 
       def to_model
@@ -34,21 +34,21 @@ module FlexColumns
       end
 
       def serialize!
-        if fields
-          model_instance[flex_column_name] = JSON.dump(fields)
+        if field_data
+          model_instance[flex_column_name] = JSON.dump(field_data.stringify_keys)
         end
       end
 
       private
       attr_reader :model_instance, :column_definition
-      attr_accessor :fields
+      attr_accessor :field_data
 
       def flex_column_name
         column_definition.flex_column_name
       end
 
       def deserialize_if_necessary!
-        return if @fields
+        return if @field_data
 
         raw_data = model_instance[flex_column_name]
         raw_data = raw_data.strip if raw_data
@@ -57,14 +57,16 @@ module FlexColumns
           parsed = JSON.parse(raw_data)
 
           raise "Invalid data: #{parsed.inspect}" unless parsed.kind_of?(Hash)
-          @fields = parsed
+          @field_data = parsed.symbolize_keys
         else
-          @fields = { }
+          @field_data = { }
         end
       end
 
-      def assert_valid_field_name!(field_name)
+      def validate_field_name(field_name)
+        field_name = field_name.to_s.strip.downcase
         raise "Invalid field name: #{field_name.inspect}" unless column_definition.has_field?(field_name)
+        field_name.to_sym
       end
     end
   end

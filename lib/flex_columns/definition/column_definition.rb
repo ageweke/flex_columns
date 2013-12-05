@@ -1,5 +1,6 @@
 require 'active_support'
 require 'active_support/core_ext'
+require 'flex_columns/definition/field_definition'
 
 module FlexColumns
   module Definition
@@ -12,9 +13,15 @@ module FlexColumns
         @options = options
         @has_validations = false
 
-        @fields = { }
+        @fields = [ ]
 
         instance_eval(&block)
+      end
+
+      delegate :define_dynamic_method_on_model_class!, :to => :columns_manager
+
+      def define_flex_column_method!(*args, &block)
+        contents_class.send(:define_method, *args, &block)
       end
 
       def has_validations?
@@ -27,27 +34,16 @@ module FlexColumns
       end
 
       def has_field?(field_name)
-        fields[field_name.to_s.strip.downcase]
+        !! field_named(field_name)
       end
 
       def define_methods!
         fcn = flex_column_name
-
-        columns_manager.define_direct_method!(flex_column_name) do
+        columns_manager.define_direct_method_on_model_class!(flex_column_name) do
           _flex_columns_contents_manager.contents_for(fcn)
         end
 
-        fields.keys.each do |field_name|
-          columns_manager.define_dynamic_method!(field_name) do
-            contents = send(fcn)
-            contents.send(field_name)
-          end
-
-          columns_manager.define_dynamic_method!("#{field_name}=") do |x|
-            contents = send(fcn)
-            contents.send("#{field_name}=", x)
-          end
-        end
+        fields.each { |field| field.define_methods_on_model_class! }
       end
 
       def contents_class
@@ -58,21 +54,19 @@ module FlexColumns
         end
       end
 
-      def field(name)
-        name = name.to_s.strip.downcase
-        fields[name] = true
+      def field(name, *args)
+        field_definition = FlexColumns::Definition::FieldDefinition.new(self, name, *args)
+        field_definition.define_methods_on_flex_column!
 
-        contents_class.send(:define_method, name) do
-          self[name]
-        end
-
-        contents_class.send(:define_method, "#{name}=") do |x|
-          self[name] = x
-        end
+        fields << field_definition
       end
 
       private
       attr_reader :columns_manager, :fields, :has_validations
+
+      def field_named(name)
+        fields.detect { |f| f.name.to_s == name.to_s.strip.downcase }
+      end
 
       def model_class
         columns_manager.model_class

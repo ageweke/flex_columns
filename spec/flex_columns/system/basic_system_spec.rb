@@ -37,7 +37,7 @@ describe "FlexColumns basic operations" do
 
       user2 = ::User.find(user.id)
       user2.user_attributes['wants_email'].should == 'sometimes'
-      user2.user_attributes.keys.should == %w{wants_email}
+      user2.user_attributes.keys.should == [ :wants_email ]
     end
 
     it "should store its data as standard JSON" do
@@ -56,7 +56,7 @@ describe "FlexColumns basic operations" do
 
       contents = JSON.parse(string)
       contents.class.should == Hash
-      contents.keys.should == %w{wants_email}
+      contents.keys.should == [ 'wants_email' ]
       contents['wants_email'].should == 'sometimes'
     end
 
@@ -72,7 +72,7 @@ describe "FlexColumns basic operations" do
 
       user2 = ::User.find(user.id)
       user2.user_attributes.wants_email.should == 'sometimes'
-      user2.user_attributes.keys.should == %w{wants_email}
+      user2.user_attributes.keys.should == [ :wants_email ]
     end
 
     it "should delegate methods to attributes automatically" do
@@ -87,7 +87,7 @@ describe "FlexColumns basic operations" do
 
       user2 = ::User.find(user.id)
       user2.wants_email.should == 'sometimes'
-      user2.user_attributes.keys.should == %w{wants_email}
+      user2.user_attributes.keys.should == [ :wants_email ]
     end
 
     it "should have a reasonable class name for contents" do
