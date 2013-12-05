@@ -94,11 +94,23 @@ describe "FlexColumns basic operations" do
       class_name = ::User.new.user_attributes.class.name
       class_name.should match(/^user::/i)
       class_name.should match(/userattributes/i)
-      class_name.should match(/flexcontents/i)
+      class_name.should match(/flexcolumn/i)
     end
 
     it "should let you redefine flex columns, and obey the new settings"
     it "should let you change the attribute name of a flex column to be different from the column itself, if you want"
     it "should let you make flex-column accessors private, if you want"
+    it "should return a nice error if JSON parsing fails"
+    it "should return a nice error if the string isn't even a validly-encoded string"
+    it "should allow making the flex-column name in the code different from the actual column name in the table"
+    it "should fail before storing if the JSON produced is too long for the column"
+    it "should discard all attributes when #reload is called"
+    it "should not deserialize columns if they aren't touched"
+    it "should not deserialize columns to run validations if there aren't any"
+    it "should deserialize columns to run validations if there are any"
+    it "should delete undefined attributes from JSON data if asked to, if a field is touched"
+    it "should not delete undefined attributes from JSON data if not asked to"
+    it "should allow marking fields as preserved, so you can't access them but they aren't deleted"
+    it "should allow generating methods as private if requested"
   end
 end
