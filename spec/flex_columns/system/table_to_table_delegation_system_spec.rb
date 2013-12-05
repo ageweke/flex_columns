@@ -87,7 +87,7 @@ describe "FlexColumns table-to-table delegation" do
     s.length.should > 0
 
     h = JSON.parse(s)
-    h.keys.should == [ 'att1a_f1', 'att1a_f2' ]
+    h.keys.sort.should == [ 'att1a_f1', 'att1a_f2' ].sort
     h['att1a_f1'].should == 'foo'
     h['att1a_f2'].should == 'bar'
 
@@ -107,7 +107,7 @@ describe "FlexColumns table-to-table delegation" do
       end
 
       flex_column :attributes_1b do
-        field :att1a_f1
+        field :att1b_f1
       end
 
       belongs_to :user
@@ -122,37 +122,45 @@ describe "FlexColumns table-to-table delegation" do
     user = ::User.new
     user.name = 'User 1'
 
-    user.att1a_f1.should ==
-
-    user.attributes_1a.att1a_f1 = "foo"
-    user.attributes_1a.att1a_f1.should == "foo"
+    user.att1a_f1 = "foo"
     user.att1a_f1.should == "foo"
 
-    user.att1a_f2 = "bar"
-    user.att1a_f2.should == "bar"
-    user.attributes_1a.att1a_f2.should == "bar"
+    user.respond_to?(:attributes_1b).should_not be
+    user.respond_to?(:att1b_f1).should_not be
+    user.respond_to?(:att1b_f1=).should_not be
+    lambda { user.attributes_1b }.should raise_error(NameError)
+    lambda { user.att1b_f1 }.should raise_error(NameError)
+    lambda { user.att1b_f1 = "foo" }.should raise_error(NameError)
+  end
 
-    user.save!
+  it "should allow prefixing delegated names" do
+    define_model_class(:UserDetails, 'flexcols_spec_user_details_1') do
+      flex_column :attributes_1a do
+        field :att1a_f1
+      end
 
-    define_model_class(:UserBackdoor, "flexcols_spec_users") { }
-    define_model_class(:UserDetailsBackdoor, "flexcols_spec_user_details_1") { }
+      flex_column :attributes_1b do
+        field :att1b_f1
+      end
 
-    bd_user = ::UserBackdoor.find(user.id)
-    bd_user.should be
+      belongs_to :user
+    end
 
-    bd_details_array = ::UserDetailsBackdoor.where(:user_id => bd_user.id).all
-    bd_details_array.length.should == 1
-    bd_details = bd_details_array[0]
+    define_model_class(:User, 'flexcols_spec_users') do
+      has_one :user_details
 
-    bd_details.should be
-    bd_details.user_id.should == bd_user.id
-    s = bd_details.attributes_1a
-    s.should be
-    s.length.should > 0
+      include_flex_columns_from :user_details, :prefix => 'abc'
+    end
 
-    h = JSON.parse(s)
-    h.keys.should == [ 'att1a_f1', 'att1a_f2' ]
-    h['att1a_f1'].should == 'foo'
-    h['att1a_f2'].should == 'bar'
+    user = ::User.new
+    user.name = 'User 1'
+
+    user.respond_to?(:attributes_1a).should_not be
+    user.respond_to?(:att1a_f1).should_not be
+    user.respond_to?(:att1a_f1=).should_not be
+
+    user.abc_att1a_f1 = "foo"
+    user.abc_att1a_f1.should == "foo"
+    user.abc_attributes_1a.att1a_f1.should == "foo"
   end
 end

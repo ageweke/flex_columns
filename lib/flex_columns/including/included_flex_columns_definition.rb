@@ -14,6 +14,8 @@ module FlexColumns
         association_name = association_name.to_sym
         association = association_for(association_name)
 
+        validate_options(options, association)
+
         includes[association_name] = options
 
         sync_delegations!
@@ -30,15 +32,22 @@ module FlexColumns
           association = association_for(association_name)
 
           association.klass._flex_columns_manager.all_column_definitions.each do |column_definition|
-            define_methods_for_flex_column(association_name, column_definition, options)
+            unless options[:columns] && (! options[:columns].include?(column_definition.flex_column_name))
+              define_methods_for_flex_column(association_name, column_definition, options)
+            end
           end
         end
       end
 
       def define_methods_for_flex_column(association_name, column_definition, options)
+        prefix = options[:prefix]
+
         fcn = column_definition.flex_column_name
 
-        dynamic_methods_module.define_method(fcn) do
+        flex_column_method_name = fcn.to_s
+        flex_column_method_name = "#{prefix}_#{fcn}" if prefix
+
+        dynamic_methods_module.define_method(flex_column_method_name) do
           associated_model = send(association_name) || send("build_#{association_name}")
           associated_model.send(fcn)
         end
@@ -46,16 +55,41 @@ module FlexColumns
         column_definition.all_fields.each do |field_definition|
           fdn = field_definition.name
 
-          dynamic_methods_module.define_method(fdn) do
-            flex_contents = send(fcn)
+          flex_column_field_name = fdn.to_s
+          flex_column_field_name = "#{prefix}_#{flex_column_field_name}" if prefix
+
+          dynamic_methods_module.define_method(flex_column_field_name) do
+            flex_contents = send(flex_column_method_name)
             flex_contents.send(fdn)
           end
 
-          dynamic_methods_module.define_method("#{fdn}=") do |x|
-            flex_contents = send(fcn)
+          dynamic_methods_module.define_method("#{flex_column_field_name}=") do |x|
+            flex_contents = send(flex_column_method_name)
             raise "no flex contents for #{fdn.inspect}?" unless flex_contents
             flex_contents.send("#{fdn}=", x)
           end
+        end
+      end
+
+      def validate_options(options, association)
+        options.assert_valid_keys(:columns, :prefix)
+
+        columns = options[:columns]
+        if columns
+          unless columns.kind_of?(Symbol) || columns.kind_of?(Array)
+            raise ArgumentError, "If you specify :columns, it must be an Array or a Symbol, not: #{columns.inspect}"
+          end
+
+          options[:columns] = Array(columns)
+        end
+
+        prefix = options[:prefix]
+        if prefix
+          unless (prefix.kind_of?(String) || prefix.kind_of?(Symbol)) && (prefix.to_s.length > 0)
+            raise ArgumentError, "Prefix must be a String or Symbol, not: #{prefix.inspect}"
+          end
+
+          options[:prefix] = options[:prefix].to_s
         end
       end
 
