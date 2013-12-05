@@ -39,7 +39,11 @@ module FlexColumns
         field_name = name
         flex_column_name = column_definition.flex_column_name
 
-        if should_define_methods_on_model_class?
+        delegation_setting = effective_field_delegation_setting
+        if delegation_setting != :no
+          name_for_delegated_method = field_name
+          name_for_delegated_method = "#{delegation_setting}_#{name_for_delegated_method}" if delegation_setting.kind_of?(String)
+
           column_definition.define_dynamic_method_on_model_class!(name_for_delegated_method) do
             contents = send(flex_column_name)
             contents.send(field_name)
@@ -55,18 +59,22 @@ module FlexColumns
       private
       attr_reader :column_definition, :options
 
-      def should_define_methods_on_model_class?
-        ! (options.has_key?(:delegate) && (! options[:delegate]))
+      def our_field_delegation_setting
+        @our_field_delegation_setting ||= begin
+          if options.has_key?(:delegate) && (! options[:delegate])
+            :no
+          elsif options[:delegate] && options[:delegate].kind_of?(Hash) && options[:delegate][:prefix]
+            options[:delegate][:prefix]
+          elsif options[:delegate] && options[:delegate]
+            :yes
+          else
+            nil
+          end
+        end
       end
 
-      def name_for_delegated_method
-        prefix = options[:delegate][:prefix] if options[:delegate].kind_of?(Hash)
-
-        if prefix
-          "#{prefix}_#{name}"
-        else
-          name
-        end
+      def effective_field_delegation_setting
+        our_field_delegation_setting || column_definition.field_delegation_setting
       end
 
       def validate_options!
@@ -77,6 +85,8 @@ module FlexColumns
             raise ArgumentError, "Argument to :delegate must be true/false/nil, or a Hash"
           else
             options[:delegate].assert_valid_keys(:prefix)
+            prefix = options[:delegate][:prefix]
+            raise ArgumentError, "Prefix must be a String, not #{prefix.inspect}" unless prefix.kind_of?(String) && prefix.strip.length > 0
           end
         end
       end

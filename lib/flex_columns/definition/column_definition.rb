@@ -25,10 +25,24 @@ module FlexColumns
 
         @fields = { }
 
+        validate_options!
+
         instance_eval(&block)
       end
 
       delegate :define_dynamic_method_on_model_class!, :to => :columns_manager
+
+      def field_delegation_setting
+        @field_delegation_setting ||= begin
+          if options.has_key?(:delegate) && (! options[:delegate])
+            :no
+          elsif options[:delegate] && options[:delegate].kind_of?(Hash) && options[:delegate][:prefix]
+            options[:delegate][:prefix]
+          else
+            :yes
+          end
+        end
+      end
 
       def define_flex_column_method!(*args, &block)
         contents_class.send(:define_method, *args, &block)
@@ -72,7 +86,7 @@ module FlexColumns
       end
 
       private
-      attr_reader :columns_manager, :fields, :has_validations
+      attr_reader :columns_manager, :fields, :has_validations, :options
 
       def field_named(name)
         fields[FlexColumns::Definition::FieldDefinition.normalize_name(name)]
@@ -80,6 +94,20 @@ module FlexColumns
 
       def model_class
         columns_manager.model_class
+      end
+
+      def validate_options!
+        options.assert_valid_keys(:delegate)
+
+        if options[:delegate] && (options[:delegate] != true)
+          if (! options[:delegate].kind_of?(Hash))
+            raise ArgumentError, "Argument to :delegate must be true/false/nil, or a Hash"
+          else
+            options[:delegate].assert_valid_keys(:prefix)
+            prefix = options[:delegate][:prefix]
+            raise ArgumentError, "Prefix must be a String, not #{prefix.inspect}" unless prefix.kind_of?(String) && prefix.strip.length > 0
+          end
+        end
       end
     end
   end

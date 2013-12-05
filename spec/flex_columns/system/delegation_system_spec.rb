@@ -51,4 +51,75 @@ describe "FlexColumns validations" do
     user.user_attributes.something.should == "bar"
     user.user_attributes.something_else.should == "baz"
   end
+
+  it "should let you turn off delegation for a full column, but also override it on a field-by-field basis" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :delegate => false do
+        field :wants_email
+        field :something, :delegate => { :prefix => 'foo' }
+        field :something_else, :delegate => true
+      end
+    end
+
+    user = ::User.new
+
+    user.respond_to?(:wants_email).should_not be
+    lambda { user.wants_email }.should raise_error(NameError)
+    user.respond_to?(:wants_email=).should_not be
+    lambda { user.wants_email = "foo" }.should raise_error(NameError)
+
+    user.user_attributes.wants_email = "foo"
+    user.user_attributes.wants_email.should == "foo"
+
+    user.respond_to?(:something).should_not be
+    lambda { user.something }.should raise_error(NameError)
+    user.respond_to?(:something=).should_not be
+    lambda { user.something = "foo" }.should raise_error(NameError)
+
+    user.foo_something = "bar"
+    user.foo_something.should == "bar"
+
+    user.something_else = "baz"
+    user.something_else.should == "baz"
+
+    user.user_attributes.wants_email.should == "foo"
+    user.user_attributes.something.should == "bar"
+    user.user_attributes.something_else.should == "baz"
+  end
+
+  it "should let you change the delegation prefix for a full column, but also override it on a field-by-field basis" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :delegate => { :prefix => 'bonk' } do
+        field :wants_email
+        field :something, :delegate => { :prefix => 'foo' }
+        field :something_else, :delegate => true
+      end
+    end
+
+    user = ::User.new
+
+    user.respond_to?(:wants_email).should_not be
+    lambda { user.wants_email }.should raise_error(NameError)
+    user.respond_to?(:wants_email=).should_not be
+    lambda { user.wants_email = "foo" }.should raise_error(NameError)
+
+    user.bonk_wants_email = "foo"
+    user.bonk_wants_email.should == "foo"
+    user.user_attributes.wants_email.should == "foo"
+
+    user.respond_to?(:something).should_not be
+    lambda { user.something }.should raise_error(NameError)
+    user.respond_to?(:something=).should_not be
+    lambda { user.something = "foo" }.should raise_error(NameError)
+
+    user.foo_something = "bar"
+    user.foo_something.should == "bar"
+
+    user.something_else = "baz"
+    user.something_else.should == "baz"
+
+    user.user_attributes.wants_email.should == "foo"
+    user.user_attributes.something.should == "bar"
+    user.user_attributes.something_else.should == "baz"
+  end
 end
