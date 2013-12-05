@@ -15,7 +15,6 @@ module FlexColumns
         association = association_for(association_name)
 
         validate_options(options, association)
-
         includes[association_name] = options
 
         sync_delegations!
@@ -55,15 +54,17 @@ module FlexColumns
         column_definition.all_fields.each do |field_definition|
           fdn = field_definition.name
 
-          flex_column_field_name = fdn.to_s
-          flex_column_field_name = "#{prefix}_#{flex_column_field_name}" if prefix
+          delegated_name = field_definition.name_for_delegated_method
+          delegated_name = "#{prefix}_#{delegated_name}" if prefix
 
-          dynamic_methods_module.define_method(flex_column_field_name) do
+          $stderr.puts "For #{field_definition.name} (for #{fcn}), effective setting is #{field_definition.send(:effective_field_delegation_setting).inspect}, so using name: #{delegated_name.inspect}"
+
+          dynamic_methods_module.define_method(delegated_name) do
             flex_contents = send(flex_column_method_name)
             flex_contents.send(fdn)
           end
 
-          dynamic_methods_module.define_method("#{flex_column_field_name}=") do |x|
+          dynamic_methods_module.define_method("#{delegated_name}=") do |x|
             flex_contents = send(flex_column_method_name)
             raise "no flex contents for #{fdn.inspect}?" unless flex_contents
             flex_contents.send("#{fdn}=", x)

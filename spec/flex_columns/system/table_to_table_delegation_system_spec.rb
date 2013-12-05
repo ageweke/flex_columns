@@ -139,7 +139,7 @@ describe "FlexColumns table-to-table delegation" do
         field :att1a_f1
       end
 
-      flex_column :attributes_1b do
+      flex_column :attributes_1b, :delegate => { :prefix => 'bonk' } do
         field :att1b_f1
       end
 
@@ -159,8 +159,64 @@ describe "FlexColumns table-to-table delegation" do
     user.respond_to?(:att1a_f1).should_not be
     user.respond_to?(:att1a_f1=).should_not be
 
+    lambda { user.attributes_1a }.should raise_error(NameError)
+    lambda { user.att1a_f1 }.should raise_error(NameError)
+    lambda { user.att1a_f1 = "foo" }.should raise_error(NameError)
+
     user.abc_att1a_f1 = "foo"
     user.abc_att1a_f1.should == "foo"
     user.abc_attributes_1a.att1a_f1.should == "foo"
+
+    user.abc_attributes_1b.att1b_f1 = "bar"
+    user.abc_attributes_1b.att1b_f1.should == "bar"
+
+    user.respond_to?(:att1b_f1).should_not be
+    lambda { user.att1b_f1 }.should raise_error(NameError)
+    lambda { user.att1b_f1 = "x" }.should raise_error(NameError)
+
+    user.abc_bonk_att1b_f1.should == "bar"
+    user.abc_bonk_att1b_f1 = "baz"
+    user.abc_bonk_att1b_f1.should == "baz"
+    user.abc_attributes_1b.att1b_f1.should == "baz"
   end
+
+  it "should not delegate fields that aren't delegated in the flex-column definition" do
+    define_model_class(:UserDetails, 'flexcols_spec_user_details_1') do
+      flex_column :attributes_1a do
+        field :att1a_f1, :delegate => false
+        field :att1a_f2
+      end
+
+      flex_column :attributes_1b, :delegate => false do
+        field :att1b_f1
+      end
+
+      belongs_to :user
+    end
+
+    define_model_class(:User, 'flexcols_spec_users') do
+      has_one :user_details
+
+      include_flex_columns_from :user_details
+    end
+
+    user = ::User.new
+    user.name = 'User 1'
+
+    user.attributes_1a.att1a_f1 = "foo"
+    user.attributes_1a.att1a_f1.should == "foo"
+    user.att1a_f2 = "bar"
+    user.attributes_1a.att1a_f2.should == "bar"
+
+    user.respond_to?(:att1a_f1).should_not be
+    lambda { user.att1a_f1 }.should raise_error(NameError)
+
+    user.attributes_1b.att1b_f1 = "baz"
+    user.attributes_1b.att1b_f1.should == "baz"
+
+    user.respond_to?(:att1b_f1).should_not be
+    lambda { user.att1b_f1 }.should raise_error(NameError)
+  end
+
+  it "should not delegate fields if asked not to"
 end

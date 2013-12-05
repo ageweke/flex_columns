@@ -39,20 +39,27 @@ module FlexColumns
         field_name = name
         flex_column_name = column_definition.flex_column_name
 
-        delegation_setting = effective_field_delegation_setting
-        if delegation_setting != :no
-          name_for_delegated_method = field_name
-          name_for_delegated_method = "#{delegation_setting}_#{name_for_delegated_method}" if delegation_setting.kind_of?(String)
-
-          column_definition.define_dynamic_method_on_model_class!(name_for_delegated_method) do
+        method_name = name_for_delegated_method
+        if method_name
+          column_definition.define_dynamic_method_on_model_class!(method_name) do
             contents = send(flex_column_name)
             contents.send(field_name)
           end
 
-          column_definition.define_dynamic_method_on_model_class!("#{name_for_delegated_method}=") do |x|
+          column_definition.define_dynamic_method_on_model_class!("#{method_name}=") do |x|
             contents = send(flex_column_name)
             contents.send("#{field_name}=", x)
           end
+        end
+      end
+
+      def name_for_delegated_method
+        fds = effective_field_delegation_setting
+        case fds
+        when :no then nil
+        when :yes then name
+        when String then "#{fds}_#{name}"
+        else raise "Unknown effective_field_delegation_setting #{fds.inspect}"
         end
       end
 
