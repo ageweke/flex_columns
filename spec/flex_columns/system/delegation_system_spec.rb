@@ -17,10 +17,11 @@ describe "FlexColumns validations" do
     drop_standard_system_spec_tables!
   end
 
-  it "should allow controlling which fields get delegated to the class" do
+  it "should allow controlling which fields get delegated to the class, or with a prefix, on a field-by-field basis" do
     define_model_class(:User, 'flexcols_spec_users') do
       flex_column :user_attributes do
         field :wants_email, :delegate => false
+        field :something, :delegate => { :prefix => 'foo' }
         field :something_else
       end
     end
@@ -35,9 +36,19 @@ describe "FlexColumns validations" do
     user.user_attributes.wants_email = "foo"
     user.user_attributes.wants_email.should == "foo"
 
-    user.something_else = "bar"
-    user.something_else.should == "bar"
+    user.respond_to?(:something).should_not be
+    lambda { user.something }.should raise_error(NameError)
+    user.respond_to?(:something=).should_not be
+    lambda { user.something = "foo" }.should raise_error(NameError)
 
-    user.user_attributes.something_else.should == "bar"
+    user.foo_something = "bar"
+    user.foo_something.should == "bar"
+
+    user.something_else = "baz"
+    user.something_else.should == "baz"
+
+    user.user_attributes.wants_email.should == "foo"
+    user.user_attributes.something.should == "bar"
+    user.user_attributes.something_else.should == "baz"
   end
 end
