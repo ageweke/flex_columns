@@ -2,7 +2,7 @@ require 'flex_columns'
 require 'flex_columns/helpers/exception_helpers'
 require 'flex_columns/helpers/system_helpers'
 
-describe "FlexColumns validations" do
+describe "FlexColumns delegation" do
   include FlexColumns::Helpers::SystemHelpers
   include FlexColumns::Helpers::ExceptionHelpers
 
@@ -122,4 +122,6 @@ describe "FlexColumns validations" do
     user.user_attributes.something.should == "bar"
     user.user_attributes.something_else.should == "baz"
   end
+
+  it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
 end

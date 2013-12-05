@@ -96,5 +96,9 @@ describe "FlexColumns basic operations" do
       class_name.should match(/userattributes/i)
       class_name.should match(/flexcontents/i)
     end
+
+    it "should let you redefine flex columns, and obey the new settings"
+    it "should let you change the attribute name of a flex column to be different from the column itself, if you want"
+    it "should let you make flex-column accessors private, if you want"
   end
 end

@@ -25,6 +25,10 @@ module FlexColumns
     end
 
     module ClassMethods
+      def has_any_flex_columns?
+        true
+      end
+
       def flex_column(flex_column_name, options = { }, &block)
         _flex_columns_manager.flex_column(flex_column_name, options, &block)
       end

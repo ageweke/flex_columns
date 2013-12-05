@@ -42,6 +42,17 @@ module FlexColumns
         methods_module.send(:define_method, method_name, &block)
       end
 
+      def create_delegations_from(delegating_class, delegating_association_name)
+        all_column_definitions.each do |column_definition|
+          fcn = column_definition.flex_column_name
+
+          delegating_class.send(:define_method, fcn) do
+            associated_model = send(delegating_association_name) || send("build_#{delegating_association_name}")
+            associated_model.send(fcn)
+          end
+        end
+      end
+
       private
       attr_reader :direct_methods_defined
       attr_accessor :methods_module, :dynamic_methods_defined, :column_definitions
