@@ -5,15 +5,25 @@ require 'flex_columns/definition/field_definition'
 module FlexColumns
   module Definition
     class ColumnDefinition
+      class << self
+        def normalize_name(name)
+          case name
+          when Symbol then name
+          when String then name.strip.downcase.to_sym
+          else raise ArgumentError, "You must supply a name, not: #{name.inspect}"
+          end
+        end
+      end
+
       attr_reader :flex_column_name
 
       def initialize(columns_manager, flex_column_name, options, &block)
         @columns_manager = columns_manager
-        @flex_column_name = flex_column_name.to_s.strip.downcase
+        @flex_column_name = self.class.normalize_name(flex_column_name)
         @options = options
         @has_validations = false
 
-        @fields = [ ]
+        @fields = { }
 
         instance_eval(&block)
       end
@@ -43,13 +53,13 @@ module FlexColumns
           _flex_columns_contents_manager.contents_for(fcn)
         end
 
-        fields.each { |field| field.define_methods_on_model_class! }
+        fields.values.each { |field| field.define_methods_on_model_class! }
       end
 
       def contents_class
         @contents_class ||= begin
           out = Class.new(FlexColumns::Contents::BaseContents)
-          name = "#{flex_column_name.camelize}FlexContents".to_sym
+          name = "#{flex_column_name.to_s.camelize}FlexContents".to_sym
           model_class.const_set(name, out)
         end
       end
@@ -58,14 +68,14 @@ module FlexColumns
         field_definition = FlexColumns::Definition::FieldDefinition.new(self, name, *args)
         field_definition.define_methods_on_flex_column!
 
-        fields << field_definition
+        fields[field_definition.name] = field_definition
       end
 
       private
       attr_reader :columns_manager, :fields, :has_validations
 
       def field_named(name)
-        fields.detect { |f| f.name.to_s == name.to_s.strip.downcase }
+        fields[FlexColumns::Definition::FieldDefinition.normalize_name(name)]
       end
 
       def model_class

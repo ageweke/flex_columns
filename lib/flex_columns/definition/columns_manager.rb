@@ -7,27 +7,25 @@ module FlexColumns
 
       def initialize(model_class)
         @model_class = model_class
-        @column_definitions = [ ]
+        @column_definitions = { }
 
         sync_methods!
       end
 
       def flex_column(flex_column_name, options, &block)
         new_definition = FlexColumns::Definition::ColumnDefinition.new(self, flex_column_name, options, &block)
-        column_definitions.delete_if { |cd| cd.flex_column_name == new_definition.flex_column_name }
-        column_definitions << new_definition
+        column_definitions[new_definition.flex_column_name] = new_definition
 
         sync_methods!
       end
 
       def all_column_definitions
-        column_definitions
+        column_definitions.values
       end
 
       def column_definition(flex_column_name)
-        flex_column_name = flex_column_name.to_s.strip.downcase
-        out = column_definitions.detect { |cd| cd.flex_column_name == flex_column_name }
-        out || raise("No flex column '#{flex_column_name}' on #{model_class.inspect}")
+        flex_column_name = FlexColumns::Definition::ColumnDefinition.normalize_name(flex_column_name)
+        column_definitions[flex_column_name] || raise("No flex column '#{flex_column_name}' on #{model_class.inspect}")
       end
 
       def define_direct_method_on_model_class!(method_name, &block)
@@ -77,7 +75,7 @@ module FlexColumns
           @model_class.class_eval("remove_method :#{method_name}")
         end
 
-        column_definitions.each { |cd| cd.define_methods! }
+        column_definitions.values.each { |cd| cd.define_methods! }
       end
     end
   end

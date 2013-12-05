@@ -9,6 +9,7 @@ module FlexColumns
       end
 
       def contents_for(flex_column_name)
+        flex_column_name = FlexColumns::Definition::ColumnDefinition.normalize_name(flex_column_name)
         definition = columns_manager.column_definition(flex_column_name) # so it'll raise if not present
         contents[flex_column_name] ||= definition.contents_class.new(model_instance, definition)
       end

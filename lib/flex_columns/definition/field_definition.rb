@@ -1,11 +1,21 @@
 module FlexColumns
   module Definition
     class FieldDefinition
+      class << self
+        def normalize_name(name)
+          case name
+          when Symbol then name
+          when String then name.strip.downcase.to_sym
+          else raise ArgumentError, "You must supply a name, not: #{name.inspect}"
+          end
+        end
+      end
+
       attr_reader :name
 
       def initialize(column_definition, field_name, *args)
         @column_definition = column_definition
-        @name = field_name.to_s.strip.downcase.to_sym
+        @name = self.class.normalize_name(field_name)
         @options = if args[-1] && args[-1].kind_of?(Hash) then args.pop else { } end
 
         raise ArgumentError, "Unexpected arguments: #{args.inspect}" if args.length > 0

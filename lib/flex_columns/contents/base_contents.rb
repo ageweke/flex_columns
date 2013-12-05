@@ -64,9 +64,9 @@ module FlexColumns
       end
 
       def validate_field_name(field_name)
-        field_name = field_name.to_s.strip.downcase
+        field_name = FlexColumns::Definition::FieldDefinition.normalize_name(field_name)
         raise "Invalid field name: #{field_name.inspect}" unless column_definition.has_field?(field_name)
-        field_name.to_sym
+        field_name
       end
     end
   end
