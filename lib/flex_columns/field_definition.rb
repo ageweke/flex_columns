@@ -12,6 +12,8 @@ module FlexColumns
       end
     end
 
+    attr_reader :field_name
+
     def initialize(flex_column_class, field_name, options = { })
       unless flex_column_class.respond_to?(:is_flex_column_class?) && flex_column_class.is_flex_column_class?
         raise ArgumentError, "You can't define a flex-column field against #{flex_column_class.inspect}; that isn't a flex-column class."
@@ -69,7 +71,7 @@ module FlexColumns
     end
 
     private
-    attr_reader :flex_column_class, :field_name, :options
+    attr_reader :flex_column_class, :options
 
     def validate_options(options)
       options.assert_valid_keys(:delegate, :private, :read_only)
