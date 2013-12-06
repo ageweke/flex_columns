@@ -143,18 +143,55 @@ describe "FlexColumns basic operations" do
       user.respond_to?(:another_thing).should be
     end
 
+    it "should return Symbols as Strings, so that saving to the database and reading from it doesn't produce a different result (since Symbols are stored in JSON as Strings)" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = :bonko
+      user.wants_email.should == 'bonko'
+      user.save!
+
+      user_again = ::User.find(user.id)
+      user_again.wants_email.should == 'bonko'
+    end
+
+    it "should allow storing an Array happily" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = [ 123, "foo", 47.2, { 'foo' => 'bar' } ]
+      user.save!
+
+      user_again = ::User.find(user.id)
+      user_again.wants_email.should == [ 123, 'foo', 47.2, { 'foo' => 'bar' } ]
+    end
+
+    it "should allow storing a Hash happily" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = { 'foo' => 47.2, '13' => 'bar', 'baz' => [ 'a', 'b', 'c' ] }
+      user.save!
+
+      user_again = ::User.find(user.id)
+      output = user_again.wants_email
+      output.class.should == Hash
+      output.keys.sort.should == [ '13', 'baz', 'foo' ].sort
+      output['13'].should == 'bar'
+      output['baz'].should == [ 'a', 'b', 'c' ]
+      output['foo'].should == 47.2
+    end
+
+    # dynamism:
     it "should let you redefine flex columns, and obey the new settings"
-    it "should return a nice error if JSON parsing fails"
-    it "should return a nice error if the string isn't even a validly-encoded string"
-    it "should fail before storing if the JSON produced is too long for the column"
     it "should discard all attributes when #reload is called"
+    it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
+
+    # performance:
     it "should not deserialize columns if they aren't touched"
     it "should not deserialize columns to run validations if there aren't any"
     it "should deserialize columns to run validations if there are any"
-    it "should delete undefined attributes from JSON data if asked to, if a field is touched"
-    it "should not delete undefined attributes from JSON data if not asked to"
-    it "should allow generating methods as private if requested"
-    it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
-    it "should return Symbols as Strings, so that saving to the database and reading from it doesn't produce a different result (since Symbols are stored in JSON as Strings)"
+
+    # error handling:
+    it "should return a nice error if JSON parsing fails"
+    it "should return a nice error if the string isn't even a validly-encoded string"
+    it "should fail before storing if the JSON produced is too long for the column"
   end
 end

@@ -179,6 +179,19 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
 
     def []=(field_name, new_value)
       field_name = validate_and_deserialize_for_field(field_name)
+
+      # We do this for a very good reason. When encoding as JSON, Ruby's JSON library happily accepts Symbols, but
+      # encodes them as simple Strings in the JSON. (This makes sense, because JSON doesn't support Symbols.) This
+      # means that if you save a value in a flex column as a Symbol, and then re-read that row from the database,
+      # you'll get back a String, not the Symbol you put in.
+      #
+      # Unfortunately, this is different from what you'll get if there is no intervening save/load cycle, where it'd
+      # otherwise stay a Symbol. This difference in behavior can be the source of some really annoying bugs. While
+      # ActiveRecord has this annoying behavior, this is a chance to clean it up in a small way -- so, if you set a
+      # Symbol, we return a String. (And, yes, this has no bearing on Symbols stored nested inside Arrays or Hashes;
+      # and that's OK.)
+      new_value = new_value.to_s if new_value.kind_of?(Symbol)
+
       field_contents[field_name] = new_value
     end
 
