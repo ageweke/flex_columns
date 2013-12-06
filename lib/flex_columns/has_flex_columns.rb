@@ -52,7 +52,7 @@ module FlexColumns
       end
 
       def _all_flex_column_names
-        _flex_column_classes.keys
+        _flex_column_classes.map(&:column_name)
       end
 
       def _flex_column_normalize_name(flex_column_name)
@@ -61,11 +61,11 @@ module FlexColumns
 
       def _flex_column_class_for(flex_column_name)
         flex_column_name = _flex_column_normalize_name(flex_column_name)
-        out = _flex_column_classes[flex_column_name]
+        out = _flex_column_classes.detect { |fcc| fcc.column_name == flex_column_name }
 
         unless out
           raise FlexColumns::Errors::NoSuchColumnError, %{Model class #{self.name} has no flex column named #{flex_column_name.inspect};
-it has flex columns named: #{_flex_column_classes.keys.sort_by { |x| x.to_s }.join(", ")}.}
+it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
         end
 
         out
@@ -82,22 +82,20 @@ it has flex columns named: #{_flex_column_classes.keys.sort_by { |x| x.to_s }.jo
         new_class.setup!(self, flex_column_name, options)
         new_class.class_eval(&block)
 
-        _flex_column_classes[flex_column_name] = new_class
+        _flex_column_classes.delete_if { |fcc| fcc.column_name == flex_column_name }
+        _flex_column_classes << new_class
 
         define_method(flex_column_name) do
           _flex_column_object_for(flex_column_name)
         end
 
         _flex_column_dynamic_methods_module.remove_all_methods!
-
-        _flex_column_classes.each do |name, fc|
-          fc.sync_methods!
-        end
+        _flex_column_classes.each(&:sync_methods!)
       end
 
       private
       def _flex_column_classes
-        @_flex_column_classes ||= { }
+        @_flex_column_classes ||= [ ]
       end
     end
   end

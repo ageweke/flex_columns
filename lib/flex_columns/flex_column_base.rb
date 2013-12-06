@@ -65,7 +65,7 @@ module FlexColumns
       end
 
       def column_name
-        column.name
+        column.name.to_sym
       end
 
       def fields_are_private_by_default?
