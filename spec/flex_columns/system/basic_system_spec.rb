@@ -97,8 +97,53 @@ describe "FlexColumns basic operations" do
       class_name.should match(/flexcolumn/i)
     end
 
+    it "should let you make flex-column accessors private one-by-one" do
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes do
+          field :wants_email, :visibility => :private
+          field :another_thing
+        end
+      end
+
+      user = ::User.new
+      user.user_attributes.respond_to?(:wants_email).should_not be
+      lambda { user.user_attributes.wants_email }.should raise_error(NoMethodError)
+
+      user.user_attributes.send(:wants_email).should be_nil
+      user.user_attributes.send("wants_email=", "foobar").should == "foobar"
+      user.user_attributes.send(:wants_email).should == "foobar"
+
+      user.user_attributes.another_thing = 123
+      user.user_attributes.another_thing.should == 123
+
+      user.respond_to?(:wants_email).should_not be
+      user.respond_to?(:another_thing).should be
+    end
+
+    it "should let you make flex-column accessors private en masse, and override it one-by-one" do
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes, :visibility => :private do
+          field :wants_email
+          field :another_thing, :visibility => :public
+        end
+      end
+
+      user = ::User.new
+      user.user_attributes.respond_to?(:wants_email).should_not be
+      lambda { user.user_attributes.wants_email }.should raise_error(NoMethodError)
+
+      user.user_attributes.send(:wants_email).should be_nil
+      user.user_attributes.send("wants_email=", "foobar").should == "foobar"
+      user.user_attributes.send(:wants_email).should == "foobar"
+
+      user.user_attributes.another_thing = 123
+      user.user_attributes.another_thing.should == 123
+
+      user.respond_to?(:wants_email).should_not be
+      user.respond_to?(:another_thing).should be
+    end
+
     it "should let you redefine flex columns, and obey the new settings"
-    it "should let you make flex-column accessors private, if you want"
     it "should return a nice error if JSON parsing fails"
     it "should return a nice error if the string isn't even a validly-encoded string"
     it "should fail before storing if the JSON produced is too long for the column"
