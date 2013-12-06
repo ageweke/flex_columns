@@ -14,16 +14,19 @@ module FlexColumns
 
     attr_reader :field_name
 
-    def initialize(flex_column_class, field_name, options = { })
+    def initialize(flex_column_class, field_name, additional_arguments, options)
       unless flex_column_class.respond_to?(:is_flex_column_class?) && flex_column_class.is_flex_column_class?
         raise ArgumentError, "You can't define a flex-column field against #{flex_column_class.inspect}; that isn't a flex-column class."
       end
 
       validate_options(options)
-
       @flex_column_class = flex_column_class
       @field_name = self.class.normalize_name(field_name)
       @options = options
+      @field_type = nil
+
+      apply_additional_arguments(additional_arguments)
+      apply_validations!
     end
 
     def add_methods_to_flex_column_class!(dynamic_methods_module)
@@ -111,13 +114,17 @@ they're being included from.}
     attr_reader :flex_column_class, :options
 
     def validate_options(options)
-      options.assert_valid_keys(:visibility)
+      options.assert_valid_keys(:visibility, :null, :enum, :limit)
 
       case options[:visibility]
       when nil then nil
       when :public then nil
       when :private then nil
       else raise ArgumentError, "Invalid value for :visibility: #{options[:visibility].inspect}"
+      end
+
+      unless [ nil, true, false ].include?(options[:null])
+        raise ArgumentError, "Invalid value for :null: #{options[:null].inspect}"
       end
     end
 
@@ -127,6 +134,91 @@ they're being included from.}
       when :private then true
       when nil then flex_column_class.fields_are_private_by_default?
       else raise "This should never happen: #{options[:visibility].inspect}"
+      end
+    end
+
+    def apply_additional_arguments(additional_arguments)
+      type = additional_arguments.shift
+      if type
+        begin
+          send("apply_validations_for_#{type}")
+        rescue NoMethodError => nme
+          raise ArgumentError, "Unknown type: #{type.inspect}"
+        end
+      end
+
+      if additional_arguments.length > 0
+        raise ArgumentError, "Invalid additional arguments: #{additional_arguments.inspect}"
+      end
+    end
+
+    def apply_validations_for_integer
+      flex_column_class.validates field_name, :numericality => { :only_integer => true }
+    end
+
+    def apply_validations_for_string
+      flex_column_class.validates_each field_name do |record, attr, value|
+        record.errors.add(attr, "must be a String") if value && (! value.kind_of?(String)) && (! value.kind_of?(Symbol))
+      end
+    end
+
+    def apply_validations_for_text
+      apply_validations_for_string
+    end
+
+    def apply_validations_for_float
+      flex_column_class.validates field_name, :numericality => true, :allow_nil => true
+    end
+
+    def apply_validations_for_decimal
+      apply_validations_for_float
+    end
+
+    def apply_validations_for_date
+      flex_column_class.validates_each field_name do |record, attr, value|
+        record.errors.add(attr, "must be a Date") if value && (! value.kind_of?(Date))
+      end
+    end
+
+    def apply_validations_for_time
+      flex_column_class.validates_each field_name do |record, attr, value|
+        record.errors.add(attr, "must be a Time") if value && (! value.kind_of?(Time))
+      end
+    end
+
+    def apply_validations_for_timestamp
+      apply_validations_for_datetime
+    end
+
+    def apply_validations_for_datetime
+      flex_column_class.validates_each field_name do |record, attr, value|
+        record.errors.add(attr, "must be a Time or DateTime") if value && (! value.kind_of?(Time)) && (value.class.name != 'DateTime')
+      end
+    end
+
+    def apply_validations_for_boolean
+      flex_column_class.validates field_name, :inclusion => { :in => [ true, false, nil ] }
+    end
+
+    def apply_validations!
+      if options.has_key?(:null) && (! options[:null])
+        flex_column_class.validates field_name, :presence => true
+      end
+
+      if options.has_key?(:enum)
+        values = options[:enum]
+        unless values.kind_of?(Array)
+          raise ArgumentError, "Must specify an Array of possible values, not: #{options[:enum].inspect}"
+        end
+
+        flex_column_class.validates field_name, :inclusion => { :in => values }
+      end
+
+      if options.has_key?(:limit)
+        limit = options[:limit]
+        raise ArgumentError, "Limit must be > 0, not: #{limit.inspect}" unless limit.kind_of?(Integer) && limit > 0
+
+        flex_column_class.validates field_name, :length => { :maximum => limit }
       end
     end
   end

@@ -98,11 +98,9 @@ describe "FlexColumns basic operations" do
     end
 
     it "should let you redefine flex columns, and obey the new settings"
-    it "should let you change the attribute name of a flex column to be different from the column itself, if you want"
     it "should let you make flex-column accessors private, if you want"
     it "should return a nice error if JSON parsing fails"
     it "should return a nice error if the string isn't even a validly-encoded string"
-    it "should allow making the flex-column name in the code different from the actual column name in the table"
     it "should fail before storing if the JSON produced is too long for the column"
     it "should discard all attributes when #reload is called"
     it "should not deserialize columns if they aren't touched"
@@ -110,8 +108,8 @@ describe "FlexColumns basic operations" do
     it "should deserialize columns to run validations if there are any"
     it "should delete undefined attributes from JSON data if asked to, if a field is touched"
     it "should not delete undefined attributes from JSON data if not asked to"
-    it "should allow marking fields as preserved, so you can't access them but they aren't deleted"
     it "should allow generating methods as private if requested"
     it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
+    it "should return Symbols as Strings, so that saving to the database and reading from it doesn't produce a different result (since Symbols are stored in JSON as Strings)"
   end
 end

@@ -8,11 +8,14 @@ module FlexColumns
     include ActiveModel::Validations
 
     class << self
-      def field(name, options = { })
+      def field(name, *args)
+        options = args.pop if args[-1] && args[-1].kind_of?(Hash)
+        options ||= { }
+
         name = FlexColumns::FieldDefinition.normalize_name(name)
 
         @fields ||= { }
-        @fields[name] = FlexColumns::FieldDefinition.new(self, name, options)
+        @fields[name] = FlexColumns::FieldDefinition.new(self, name, args, options)
 
         sync_methods!
       end
