@@ -25,6 +25,12 @@ module FlexColumns
         true
       end
 
+      def include_fields_into(dynamic_methods_module, association_name, options)
+        @fields.values.each do |field_definition|
+          field_definition.add_methods_to_included_class!(dynamic_methods_module, association_name, options)
+        end
+      end
+
       def to_valid_field_name(field_name)
         field_name = FlexColumns::FieldDefinition.normalize_name(field_name)
         field_name if fields[field_name]
@@ -51,6 +57,10 @@ module FlexColumns
         when :private then :private
         else raise "Impossible value for :delegate: #{options[:delegate]}"
         end
+      end
+
+      def column_name
+        column.name
       end
 
       def fields_are_private_by_default?
