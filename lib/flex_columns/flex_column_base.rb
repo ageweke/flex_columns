@@ -48,6 +48,10 @@ module FlexColumns
         options[:prefix].try(:to_s)
       end
 
+      def unknown_field_action
+        options[:unknown_fields] || :preserve
+      end
+
       def delegation_type
         return :public if (! options.has_key?(:delegate))
 
@@ -113,10 +117,14 @@ That column is of type: #{column.type.inspect}.}
           raise ArgumentError, "You must pass a Hash, not: #{options.inspect}"
         end
 
-        options.assert_valid_keys(:visibility, :prefix, :delegate)
+        options.assert_valid_keys(:visibility, :prefix, :delegate, :unknown_fields)
 
         unless [ nil, :private, :public ].include?(options[:visibility])
           raise ArgumentError, "Invalid value for :visibility: #{options[:visibility.inspect]}"
+        end
+
+        unless [ :delete, :preserve, nil ].include?(options[:unknown_fields])
+          raise ArgumentError, "Invalid value for :unknown_fields: #{options[:unknown_fields].inspect}"
         end
 
         case options[:prefix]
@@ -203,7 +211,13 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
             raise FlexColumns::Errors::InvalidJsonInDatabaseError.new(model_instance, column_name, raw_data, parsed)
           end
 
-          @field_contents = parsed.symbolize_keys
+          parsed = parsed.symbolize_keys
+
+          if self.class.unknown_field_action == :delete
+            delete_unknown_fields_from!(parsed)
+          end
+
+          @field_contents = parsed
         else
           @field_contents = { }
         end
@@ -223,6 +237,11 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
 
     private
     attr_reader :model_instance, :field_contents
+
+    def delete_unknown_fields_from!(hash)
+      extra = (hash.keys - self.class.all_field_names)
+      extra.each { |e| hash.delete(e) }
+    end
 
     def validate_and_deserialize_for_field(field_name)
       valid_field_name = self.class.to_valid_field_name(field_name)
