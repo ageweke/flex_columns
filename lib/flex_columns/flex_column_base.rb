@@ -38,7 +38,26 @@ module FlexColumns
         model_instance._flex_column_object_for(column.name)
       end
 
-      def set_model_and_column!(model_class, column_name)
+      def delegation_prefix
+        options[:prefix].try(:to_s)
+      end
+
+      def delegation_type
+        return :public if (! options.has_key?(:delegate))
+
+        case options[:delegate]
+        when nil, false then nil
+        when true, :public then :public
+        when :private then :private
+        else raise "Impossible value for :delegate: #{options[:delegate]}"
+        end
+      end
+
+      def fields_are_private_by_default?
+        options[:visibility] == :private
+      end
+
+      def setup!(model_class, column_name, options = { })
         raise ArgumentError, "You can't set model and column twice!" if @model_class || @column
 
         unless model_class.kind_of?(Class) && model_class.respond_to?(:has_any_flex_columns?) && model_class.has_any_flex_columns?
@@ -64,8 +83,11 @@ that column (on model #{model_class.name}) isn't of a type that accepts text.
 That column is of type: #{column.type.inspect}.}
         end
 
+        validate_options(options)
+
         @model_class = model_class
         @column = column
+        @options = options
 
         class_name = "FlexColumn#{column_name.to_s.camelize}".to_sym
         @model_class.const_set(class_name, self)
@@ -74,7 +96,33 @@ That column is of type: #{column.type.inspect}.}
       attr_reader :model_class, :column
 
       private
-      attr_reader :fields
+      attr_reader :fields, :options
+
+      def validate_options(options)
+        unless options.kind_of?(Hash)
+          raise ArgumentError, "You must pass a Hash, not: #{options.inspect}"
+        end
+
+        options.assert_valid_keys(:visibility, :prefix, :delegate)
+
+        unless [ nil, :private, :public ].include?(options[:visibility])
+          raise ArgumentError, "Invalid value for :visibility: #{options[:visibility.inspect]}"
+        end
+
+        case options[:prefix]
+        when nil then nil
+        when String, Symbol then nil
+        else raise ArgumentError, "Invalid value for :prefix: #{options[:prefix].inspect}"
+        end
+
+        unless [ nil, true, false, :private, :public ].include?(options[:delegate])
+          raise ArgumentError, "Invalid value for :delegate: #{options[:delegate].inspect}"
+        end
+
+        if options[:visibility] == :private && options[:delegate] == :public
+          raise ArgumentError, "You can't have public delegation if methods in the flex column are private; this makes no sense, as methods in the model class would have *greater* visibility than methods on the flex column itself"
+        end
+      end
 
       def sync_methods!
         @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
@@ -105,16 +153,12 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
 
     def [](field_name)
       field_name = validate_and_deserialize_for_field(field_name)
-      out = field_contents[field_name]
-      $stderr.puts "RETRIEVED: #{field_name.inspect} FROM: #{field_contents.inspect} -> #{out.inspect}"
-      out
+      field_contents[field_name]
     end
 
     def []=(field_name, new_value)
       field_name = validate_and_deserialize_for_field(field_name)
       field_contents[field_name] = new_value
-      $stderr.puts "SET: #{field_name.inspect} TO: #{new_value.inspect}, NOW: #{field_contents.inspect}"
-      new_value
     end
 
     def before_validation!

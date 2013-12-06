@@ -112,5 +112,6 @@ describe "FlexColumns basic operations" do
     it "should not delete undefined attributes from JSON data if not asked to"
     it "should allow marking fields as preserved, so you can't access them but they aren't deleted"
     it "should allow generating methods as private if requested"
+    it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
   end
 end

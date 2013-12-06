@@ -79,7 +79,7 @@ it has flex columns named: #{_flex_column_classes.keys.sort_by { |x| x.to_s }.jo
         flex_column_name = _flex_column_normalize_name(flex_column_name)
 
         new_class = Class.new(FlexColumns::FlexColumnBase)
-        new_class.set_model_and_column!(self, flex_column_name)
+        new_class.setup!(self, flex_column_name, options)
         new_class.class_eval(&block)
 
         _flex_column_classes[flex_column_name] = new_class

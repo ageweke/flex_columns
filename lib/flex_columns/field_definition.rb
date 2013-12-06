@@ -27,46 +27,44 @@ module FlexColumns
     end
 
     def add_methods_to_flex_column_class!(dynamic_methods_module)
-      mn = method_name
-      return if (! mn)
+      fn = field_name
 
-      dynamic_methods_module.define_method(mn) do
+      dynamic_methods_module.define_method(fn) do
         self[fn]
       end
 
-      unless read_only?
-        dynamic_methods_module.define_method("#{mn}=") do |x|
-          self[fn] = x
-        end
+      dynamic_methods_module.define_method("#{fn}=") do |x|
+        self[fn] = x
       end
 
       if private?
-        dynamic_methods_module.private(mn)
-        dynamic_methods_module.private("#{mn}=") unless read_only?
+        dynamic_methods_module.private(fn)
+        dynamic_methods_module.private("#{fn}=")
       end
     end
 
     def add_methods_to_model_class!(dynamic_methods_module)
-      mn = method_name
-      return if (! mn)
+      return if (! flex_column_class.delegation_type)
+
+      mn = field_name
+      mn = "#{flex_column_class.delegation_prefix}_#{mn}" if flex_column_class.delegation_prefix
 
       fcc = flex_column_class
+      fn = field_name
 
       dynamic_methods_module.define_method(mn) do
         flex_instance = fcc.object_for(self)
         flex_instance[fn]
       end
 
-      unless read_only?
-        dynamic_methods_module.define_method("#{mn}=") do |x|
-          flex_instance = fcc.object_for(self)
-          flex_instance[fn] = x
-        end
+      dynamic_methods_module.define_method("#{mn}=") do |x|
+        flex_instance = fcc.object_for(self)
+        flex_instance[fn] = x
       end
 
-      if private?
+      if private? || flex_column_class.delegation_type == :private
         dynamic_methods_module.private(mn)
-        dynamic_methods_module.private("#{mn}=") unless read_only?
+        dynamic_methods_module.private("#{mn}=")
       end
     end
 
@@ -74,50 +72,22 @@ module FlexColumns
     attr_reader :flex_column_class, :options
 
     def validate_options(options)
-      options.assert_valid_keys(:delegate, :private, :read_only)
+      options.assert_valid_keys(:visibility)
 
-      case options[:delegate]
+      case options[:visibility]
       when nil then nil
-      when true then nil
-      when false then nil
-      when Hash then options[:delegate].assert_valid_keys(:prefix)
-      else raise "Invalid value for :delegate: #{options[:delegate].inspect}"
+      when :public then nil
+      when :private then nil
+      else raise ArgumentError, "Invalid value for :visibility: #{options[:visibility].inspect}"
       end
-
-      case options[:private]
-      when true then nil
-      when false then nil
-      when nil then nil
-      else raise "Invalid value for :private: #{options[:private].inspect}"
-      end
-
-      case options[:read_only]
-      when true then nil
-      when false then nil
-      when nil then nil
-      else raise "Invalid value for :read_only: #{options[:read_only].inspect}"
-      end
-    end
-
-    def read_only?
-      true if options[:read_only]
-    end
-
-    def delegate?
-      true unless options.has_key?(:delegate) && (! options[:delegate])
     end
 
     def private?
-      true if options[:private]
-    end
-
-    def method_name
-      return nil if (! delegate?)
-
-      if options[:delegate] && options[:delegate].kind_of?(Hash) && options[:delegate][:prefix]
-        "#{options[:delegate][:prefix]}_#{field_name}"
-      else
-        field_name
+      case options[:visibility]
+      when :public then false
+      when :private then true
+      when nil then flex_column_class.fields_are_private_by_default?
+      else raise "This should never happen: #{options[:visibility].inspect}"
       end
     end
   end

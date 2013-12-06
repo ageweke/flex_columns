@@ -17,111 +17,53 @@ describe "FlexColumns delegation" do
     drop_standard_system_spec_tables!
   end
 
-  it "should allow controlling which fields get delegated to the class, or with a prefix, on a field-by-field basis" do
+  it "should let you turn off delegation for a column" do
     define_model_class(:User, 'flexcols_spec_users') do
-      flex_column :user_attributes do
-        field :wants_email, :delegate => false
-        field :something, :delegate => { :prefix => 'foo' }
+      flex_column :user_attributes, :delegate => false do
+        field :wants_email
+        field :something
         field :something_else
       end
     end
 
     user = ::User.new
 
-    user.respond_to?(:wants_email).should_not be
-    lambda { user.wants_email }.should raise_error(NameError)
-    user.respond_to?(:wants_email=).should_not be
-    lambda { user.wants_email = "foo" }.should raise_error(NameError)
+    %w{wants_email something something_else}.each do |method_name|
+      user.respond_to?(method_name).should_not be
+      user.respond_to?("#{method_name}=").should_not be
 
-    user.user_attributes.wants_email = "foo"
-    user.user_attributes.wants_email.should == "foo"
+      lambda { user.send(method_name) }.should raise_error(NoMethodError.superclass)
+      lambda { user.send("#{method_name}=", 1234) }.should raise_error(NoMethodError.superclass)
 
-    user.respond_to?(:something).should_not be
-    lambda { user.something }.should raise_error(NameError)
-    user.respond_to?(:something=).should_not be
-    lambda { user.something = "foo" }.should raise_error(NameError)
-
-    user.foo_something = "bar"
-    user.foo_something.should == "bar"
-
-    user.something_else = "baz"
-    user.something_else.should == "baz"
-
-    user.user_attributes.wants_email.should == "foo"
-    user.user_attributes.something.should == "bar"
-    user.user_attributes.something_else.should == "baz"
+      user.user_attributes.send(method_name).should be_nil
+      value = "abc123#{rand(1_000)}"
+      user.user_attributes.send("#{method_name}=", value).should == value
+      user.user_attributes.send(method_name).should == value
+    end
   end
 
-  it "should let you turn off delegation for a full column, but also override it on a field-by-field basis" do
+  it "should let you use private delegation for a column" do
     define_model_class(:User, 'flexcols_spec_users') do
-      flex_column :user_attributes, :delegate => false do
+      flex_column :user_attributes, :delegate => :private do
         field :wants_email
-        field :something, :delegate => { :prefix => 'foo' }
-        field :something_else, :delegate => true
+        field :something
+        field :something_else
       end
     end
 
     user = ::User.new
 
-    user.respond_to?(:wants_email).should_not be
-    lambda { user.wants_email }.should raise_error(NameError)
-    user.respond_to?(:wants_email=).should_not be
-    lambda { user.wants_email = "foo" }.should raise_error(NameError)
+    %w{wants_email something something_else}.each do |method_name|
+      user.respond_to?(method_name).should_not be
+      user.respond_to?("#{method_name}=").should_not be
 
-    user.user_attributes.wants_email = "foo"
-    user.user_attributes.wants_email.should == "foo"
+      lambda { eval("user.#{method_name}") }.should raise_error(NoMethodError)
+      lambda { eval("user.#{method_name} = 123") }.should raise_error(NoMethodError)
 
-    user.respond_to?(:something).should_not be
-    lambda { user.something }.should raise_error(NameError)
-    user.respond_to?(:something=).should_not be
-    lambda { user.something = "foo" }.should raise_error(NameError)
-
-    user.foo_something = "bar"
-    user.foo_something.should == "bar"
-
-    user.something_else = "baz"
-    user.something_else.should == "baz"
-
-    user.user_attributes.wants_email.should == "foo"
-    user.user_attributes.something.should == "bar"
-    user.user_attributes.something_else.should == "baz"
-  end
-
-  it "should let you change the delegation prefix for a full column, but also override it on a field-by-field basis" do
-    define_model_class(:User, 'flexcols_spec_users') do
-      flex_column :user_attributes, :delegate => { :prefix => 'bonk' } do
-        field :wants_email
-        field :something, :delegate => { :prefix => 'foo' }
-        field :something_else, :delegate => true
-      end
+      user.send(method_name).should be_nil
+      value = "abc123#{rand(1_000)}"
+      user.send("#{method_name}=", value).should == value
+      user.send(method_name).should == value
     end
-
-    user = ::User.new
-
-    user.respond_to?(:wants_email).should_not be
-    lambda { user.wants_email }.should raise_error(NameError)
-    user.respond_to?(:wants_email=).should_not be
-    lambda { user.wants_email = "foo" }.should raise_error(NameError)
-
-    user.bonk_wants_email = "foo"
-    user.bonk_wants_email.should == "foo"
-    user.user_attributes.wants_email.should == "foo"
-
-    user.respond_to?(:something).should_not be
-    lambda { user.something }.should raise_error(NameError)
-    user.respond_to?(:something=).should_not be
-    lambda { user.something = "foo" }.should raise_error(NameError)
-
-    user.foo_something = "bar"
-    user.foo_something.should == "bar"
-
-    user.something_else = "baz"
-    user.something_else.should == "baz"
-
-    user.user_attributes.wants_email.should == "foo"
-    user.user_attributes.something.should == "bar"
-    user.user_attributes.something_else.should == "baz"
   end
-
-  it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
 end
