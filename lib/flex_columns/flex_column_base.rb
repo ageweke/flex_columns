@@ -16,8 +16,6 @@ module FlexColumns
 
         @fields ||= { }
         @fields[name] = FlexColumns::FieldDefinition.new(self, name, args, options)
-
-        sync_methods!
       end
 
       def is_flex_column_class?
@@ -110,6 +108,16 @@ That column is of type: #{column.type.inspect}.}
         @model_class.const_set(class_name, self)
       end
 
+      def sync_methods!
+        @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
+        @dynamic_methods_module.remove_all_methods!
+
+        @fields.values.each do |field_definition|
+          field_definition.add_methods_to_flex_column_class!(@dynamic_methods_module)
+          field_definition.add_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
+        end
+      end
+
       attr_reader :model_class, :column
 
       private
@@ -142,18 +150,6 @@ That column is of type: #{column.type.inspect}.}
 
         if options[:visibility] == :private && options[:delegate] == :public
           raise ArgumentError, "You can't have public delegation if methods in the flex column are private; this makes no sense, as methods in the model class would have *greater* visibility than methods on the flex column itself"
-        end
-      end
-
-      def sync_methods!
-        @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
-
-        @dynamic_methods_module.remove_all_methods!
-        model_class._flex_column_dynamic_methods_module.remove_all_methods!
-
-        @fields.values.each do |field_definition|
-          field_definition.add_methods_to_flex_column_class!(@dynamic_methods_module)
-          field_definition.add_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
         end
       end
     end

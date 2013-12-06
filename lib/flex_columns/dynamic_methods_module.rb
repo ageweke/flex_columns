@@ -16,7 +16,9 @@ module FlexColumns
     end
 
     def remove_all_methods!
-      @methods_defined.keys.each { |name| remove_method(name) }
+      instance_methods.each do |method_name|
+        remove_method(method_name) if @methods_defined[method_name.to_sym]
+      end
     end
 
     def define_method(name, &block)

@@ -87,6 +87,12 @@ it has flex columns named: #{_flex_column_classes.keys.sort_by { |x| x.to_s }.jo
         define_method(flex_column_name) do
           _flex_column_object_for(flex_column_name)
         end
+
+        _flex_column_dynamic_methods_module.remove_all_methods!
+
+        _flex_column_classes.each do |name, fc|
+          fc.sync_methods!
+        end
       end
 
       private
