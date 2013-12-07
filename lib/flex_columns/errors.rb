@@ -102,27 +102,25 @@ The JSON we produced was:
     class IncorrectlyEncodedStringInDatabaseError < InvalidDataInDatabaseError
       attr_reader :invalid_chars_as_array, :raw_data_as_array, :first_bad_position
 
-      def initialize(model_instance, column_name, valid_part_of_string, invalid_chars_as_array, raw_data_as_array)
-        @invalid_chars_as_array = invalid_chars_as_array
-        @raw_data_as_array = raw_data_as_array
-        @first_bad_position = find_first_bad_position
-        super(model_instance, column_name, valid_part_of_string)
+      def initialize(model_instance, column_name, raw_string)
+        @raw_data_as_array = raw_string.chars.to_a
+        @valid_chars_as_array = [ ]
+        @invalid_chars_as_array = [ ]
+        @raw_data_as_array.each_with_index do |c, i|
+          if (! c.valid_encoding?)
+            @invalid_chars_as_array << c
+            @first_bad_position ||= i
+          else
+            @valid_chars_as_array << c
+          end
+        end
+        @first_bad_position ||= :unknown
+
+        super(model_instance, column_name, @valid_chars_as_array.join)
       end
 
       private
-      def find_first_bad_position
-        out = nil
-        raw_data_as_array.each_with_index do |char, i|
-          if (! char.valid_encoding?)
-            out = i
-            break
-          end
-        end
-        out || :unknown
-      end
-
       def create_message
-
         extra = %{\n\nThere are #{invalid_chars_as_array.length} invalid characters out of #{raw_data_as_array.length} total characters.
 (The string above showing the original JSON omits them, so that it's actually a valid String.)
 The first bad character occurs at position #{first_bad_position}.

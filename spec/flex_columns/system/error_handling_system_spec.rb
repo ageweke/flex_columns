@@ -81,8 +81,12 @@ describe "FlexColumns error handling" do
       e.model_instance.should be(user2)
       e.column_name.should == :user_attributes
       e.raw_string.should match(/abc.*def/i)
-      e.invalid_chars_as_array.include?("\xC3").should be
-      e.raw_data_as_array.include?("\xC3").should be
+
+      invalid_char = ["C3"].pack("H*")
+      invalid_char.force_encoding("UTF-8")
+
+      e.invalid_chars_as_array.include?(invalid_char).should be
+      e.raw_data_as_array.include?(invalid_char).should be
       e.raw_data_as_array.include?("a").should be
       e.first_bad_position.should == 3
     else

@@ -113,6 +113,7 @@ That column is of type: #{column.type.inspect}.}
         @options = options
 
         class_name = "FlexColumn#{column_name.to_s.camelize}".to_sym
+        @model_class.send(:remove_const, class_name) if @model_class.const_defined?(class_name)
         @model_class.const_set(class_name, self)
 
         methods_before = instance_methods
@@ -264,8 +265,7 @@ not #{input.inspect} (#{input.object_id}).}
         raw_data ||= ''
 
         if raw_data.respond_to?(:valid_encoding?) && (! raw_data.valid_encoding?)
-          (valid_chars, invalid_chars) = raw_data.chars.partition { |i| i.valid_encoding? }
-          raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(model_instance, column_name, valid_chars.join, invalid_chars, raw_data.chars)
+          raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(model_instance, column_name, raw_data)
         end
 
         raw_data = raw_data.strip
