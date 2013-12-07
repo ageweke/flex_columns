@@ -74,4 +74,6 @@ describe "FlexColumns unknown fields" do
     user_bd_again.wants_email.should == 'does_want'
     user_bd_again.some_unknown_attribute.should be_nil
   end
+
+  it "should have a method that explicitly will purge unknown methods, even if deserialization hasn't happened for any other reason"
 end

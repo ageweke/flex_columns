@@ -1,7 +1,7 @@
 require 'flex_columns'
 require 'flex_columns/helpers/system_helpers'
 
-describe "FlexColumns basic operations" do
+describe "FlexColumns custom-methods operations" do
   include FlexColumns::Helpers::SystemHelpers
 
   before :each do

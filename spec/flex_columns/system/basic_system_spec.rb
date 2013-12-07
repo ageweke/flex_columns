@@ -192,11 +192,5 @@ describe "FlexColumns basic operations" do
     # bulk:
     it "should allow deserializing a field in the absence of an ActiveRecord model"
     it "should allow serializing a field in the absence of an ActiveRecord model"
-
-    # custom methods:
-    it "should allow defining custom methods on the attribute class"
-    it "should delegate those methods to the enclosing class"
-    it "should not delegate those methods to the enclosing class if told not to"
-    it "should delegate those methods to the enclosing class privately if told to"
   end
 end

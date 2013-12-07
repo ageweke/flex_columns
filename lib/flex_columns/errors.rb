@@ -2,7 +2,16 @@ require 'flex_columns/utilities'
 
 module FlexColumns
   module Errors
-    class Base < ::StandardError; end
+    class Base < ::StandardError
+      private
+      def maybe_model_instance_description
+        if model_instance
+          " on #{model_instance.class.name} ID #{model_instance.id.inspect}"
+        else
+          ""
+        end
+      end
+    end
 
     class FieldError < Base; end
     class NoSuchFieldError < FieldError
@@ -15,7 +24,7 @@ module FlexColumns
         @all_field_names = all_field_names
 
         super(%{You tried to set field #{field_name.inspect} of flex column #{column_name.inspect}
-on #{model_instance.class.name} ID #{model_instance.id.inspect}. However, there is no such field
+#{maybe_model_instance_description}. However, there is no such field
 defined on that flex column; the defined fields are:
 
   #{all_field_names.join(", ")}})
@@ -37,8 +46,8 @@ defined on that flex column; the defined fields are:
         @limit = limit
         @json_string = json_string
 
-        super(%{When trying to serialize JSON for the flex column #{column_name.inspect} on
-#{model_instance.class.name} ID #{model_instance.id.inspect}, the JSON produced was too long
+        super(%{When trying to serialize JSON for the flex column #{column_name.inspect}
+#{maybe_model_instance_description}, the JSON produced was too long
 to fit in the database. We produced #{json_string.length} characters of JSON, but the
 database's limit for that column is #{limit} characters.
 
@@ -61,7 +70,7 @@ The JSON we produced was:
 
       private
       def create_message
-        %{When parsing the JSON in #{model_instance.class.name} ID #{model_instance.id.inspect}, which is:
+        %{When parsing the JSON#{maybe_model_instance_description}, which is:
 
 #{FlexColumns::Utilities.abbreviated_string(raw_string)}
 

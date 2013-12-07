@@ -51,7 +51,7 @@ describe "FlexColumns basic operations" do
     user2.respond_to?(:att1).should_not be
     user2.user_attributes.respond_to?(:att1).should_not be
     user2.respond_to?(:abc).should_not be
-    user2.user_attributes.respond_to?(:def).should_not be
+    user2.user_attributes.respond_to?(:abc).should_not be
 
     # explicitly not testing if user.respond_to?(:att3) or if user.respond_to?)(:att1); we make no guarantees about
     # what happened on older objects

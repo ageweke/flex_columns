@@ -92,6 +92,13 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
         _flex_column_classes.each(&:sync_methods!)
       end
 
+      def create_flex_objects_from(column_name, raw_strings, options = { })
+        column_class = _flex_column_class_for(column_name)
+        raw_strings.map do |rs|
+          column_class.new_from_raw_string(rs)
+        end
+      end
+
       private
       def _flex_column_classes
         @_flex_column_classes ||= [ ]

@@ -53,6 +53,14 @@ module FlexColumns
         options[:unknown_fields] || :preserve
       end
 
+      def new_from_raw_string(rs)
+        new(rs)
+      end
+
+      def new_from_nothing
+        new(nil)
+      end
+
       def delegation_type
         return :public if (! options.has_key?(:delegate))
 
@@ -174,13 +182,21 @@ That column is of type: #{column.type.inspect}.}
       end
     end
 
-    def initialize(model_instance)
-      unless model_instance.class.equal?(self.class.model_class)
-        raise ArgumentError, %{Invalid model class for #{self.class.name}: should be #{self.class.model_class.name} (#{self.class.model_class.object_id}),
-but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
+    def initialize(input)
+      if input.kind_of?(String)
+        @model_instance = nil
+        @raw_string = input
+      elsif (! input)
+        @model_instance = nil
+        @raw_string = nil
+      elsif input.class.equal?(self.class.model_class)
+        @model_instance = input
+        @raw_string = nil
+      else
+        raise ArgumentError, %{You can create a #{self.class.name} from a String, nil, or #{self.class.model_class.name} (#{self.class.model_class.object_id}),
+not #{input.inspect} (#{input.object_id}).}
       end
 
-      @model_instance = model_instance
       @field_contents = nil
     end
 
@@ -230,7 +246,8 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
 
     def deserialize_if_necessary!
       unless field_contents
-        raw_data = (model_instance[column_name] || '').strip
+        raw_data = if model_instance then model_instance[column_name] else raw_string end
+        raw_data = (raw_data || '').strip
 
         if raw_data.length > 0
           parsed = begin
@@ -258,17 +275,31 @@ but is #{model_instance.class.name} (#{model_instance.class.object_id}).}
 
     def serialize_if_necessary!
       if field_contents
-        as_string = field_contents.to_json
-        if column.limit && as_string.length > column.limit
-          raise FlexColumns::Errors::JsonTooLongError.new(model_instance, column_name, column.limit, as_string)
-        end
-
-        model_instance[column_name] = field_contents.to_json
+        model_instance[column_name] = to_json
       end
     end
 
+    def to_json
+      deserialize_if_necessary!
+
+      as_string = field_contents.to_json
+      if column.limit && as_string.length > column.limit
+        raise FlexColumns::Errors::JsonTooLongError.new(model_instance, column_name, column.limit, as_string)
+      end
+
+      field_contents.to_json
+    end
+
     private
-    attr_reader :model_instance, :field_contents
+    attr_reader :model_instance, :field_contents, :raw_string
+
+    def errors_object
+      if model_instance
+        model_instance.errors
+      else
+        @errors_object ||= ActiveModel::Errors.new(self)
+      end
+    end
 
     def delete_unknown_fields_from!(hash)
       extra = (hash.keys - self.class.all_field_names)
