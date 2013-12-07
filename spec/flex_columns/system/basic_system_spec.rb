@@ -178,10 +178,5 @@ describe "FlexColumns basic operations" do
       output['baz'].should == [ 'a', 'b', 'c' ]
       output['foo'].should == 47.2
     end
-
-    # error handling:
-    it "should return a nice error if JSON parsing fails"
-    it "should return a nice error if the string isn't even a validly-encoded string"
-    it "should fail before storing if the JSON produced is too long for the column"
   end
 end

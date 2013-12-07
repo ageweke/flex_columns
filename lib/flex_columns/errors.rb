@@ -82,8 +82,8 @@ The JSON we produced was:
       attr_reader :json_exception
 
       def initialize(model_instance, column_name, raw_string, json_exception)
-        super(model_instance, column_name, raw_string)
         @json_exception = json_exception
+        super(model_instance, column_name, raw_string)
       end
 
       private
