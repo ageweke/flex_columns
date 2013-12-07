@@ -46,4 +46,75 @@ describe "FlexColumns basic operations" do
     (user.change_number_of_emails_sent('abc') { |x| x - 5 }).should == 'abc'
     user.number_of_emails_sent.should == 7
   end
+
+  it "should not delegate methods if told not to" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :delegate => false do
+        field :number_of_emails_sent
+
+        def increment_number_of_emails_sent
+          self.number_of_emails_sent += 1
+        end
+
+        def change_number_of_emails_sent(return_value)
+          self.number_of_emails_sent = yield number_of_emails_sent
+          return_value
+        end
+      end
+    end
+
+    user = ::User.new
+    user.name = 'User 1'
+
+    user.respond_to?(:number_of_emails_sent).should_not be
+    user.respond_to?(:increment_number_of_emails_sent).should_not be
+    user.respond_to?(:change_number_of_emails_sent).should_not be
+  end
+
+  it "should delegate methods privately if told to" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :delegate => :private do
+        field :number_of_emails_sent
+
+        def increment_number_of_emails_sent
+          self.number_of_emails_sent += 1
+        end
+
+        def change_number_of_emails_sent(return_value)
+          self.number_of_emails_sent = yield number_of_emails_sent
+          return_value
+        end
+      end
+
+      def nes=(x)
+        self.number_of_emails_sent = x
+      end
+
+      def nes
+        number_of_emails_sent
+      end
+
+      def ies
+        increment_number_of_emails_sent
+      end
+
+      def cnes(rv, &block)
+        change_number_of_emails_sent(rv, &block)
+      end
+    end
+
+    user = ::User.new
+    user.name = 'User 1'
+
+    user.respond_to?(:number_of_emails_sent).should_not be
+    user.respond_to?(:increment_number_of_emails_sent).should_not be
+    user.respond_to?(:change_number_of_emails_sent).should_not be
+
+    user.nes = 10
+    user.nes.should == 10
+    user.ies
+    user.nes.should == 11
+    (user.cnes('abc') { |x| x - 5 }).should == 'abc'
+    user.nes.should == 6
+  end
 end

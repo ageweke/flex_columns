@@ -129,6 +129,8 @@ That column is of type: #{column.type.inspect}.}
       attr_reader :fields, :options, :custom_methods
 
       def add_custom_methods_to_model_class!(dynamic_methods_module)
+        return if (! delegation_type)
+
         cn = column_name
 
         custom_methods.each do |custom_method|
@@ -136,6 +138,8 @@ That column is of type: #{column.type.inspect}.}
             flex_object = send(cn)
             flex_object.send(custom_method, *args, &block)
           end
+
+          dynamic_methods_module.private(custom_method) if delegation_type == :private
         end
       end
 
