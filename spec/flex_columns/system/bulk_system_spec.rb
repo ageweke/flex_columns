@@ -54,5 +54,20 @@ describe "FlexColumns bulk operations" do
       object.errors[:bbb].length.should == 1
       object.errors[:bbb][0].should match(/is not a number/i)
     end
+
+    json_blobs.each_with_index do |json_blob, i|
+      object = ::User.create_flex_object_from(:user_attributes, json_blob)
+
+      user = users[i]
+
+      object.aaa.should == user.aaa
+      object.bbb.should == user.bbb
+
+      object.bbb = "cannot-validate"
+      object.valid?.should_not be
+      object.errors.keys.should == [ :bbb ]
+      object.errors[:bbb].length.should == 1
+      object.errors[:bbb][0].should match(/is not a number/i)
+    end
   end
 end
