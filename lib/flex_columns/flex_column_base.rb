@@ -261,7 +261,16 @@ not #{input.inspect} (#{input.object_id}).}
     def deserialize_if_necessary!
       unless field_contents
         raw_data = if model_instance then model_instance[column_name] else raw_string end
-        raw_data = (raw_data || '').strip
+        raw_data ||= ''
+
+        begin
+          # Make sure we trigger an encoding error, if the encoding is bogus
+          raw_data = raw_data.strip
+          raw_data.length
+        rescue ArgumentError => ae
+          (valid_chars, invalid_chars) = raw_data.chars.partition { |i| i.valid_encoding? }
+          raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(model_instance, column_name, valid_chars.join, ae, invalid_chars, raw_data.chars)
+        end
 
         if raw_data.length > 0
           parsed = nil
@@ -269,7 +278,7 @@ not #{input.inspect} (#{input.object_id}).}
           instrument("deserialize", :raw_data => raw_data) do
             begin
               parsed = JSON.parse(raw_data)
-            rescue JSON::ParserError => pe
+            rescue ::JSON::ParserError => pe
               raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(model_instance, column_name, raw_data, pe)
             end
 

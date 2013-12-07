@@ -79,16 +79,38 @@ The JSON we produced was:
     end
 
     class UnparseableJsonInDatabaseError < InvalidDataInDatabaseError
-      attr_reader :json_exception
+      attr_reader :exception
 
-      def initialize(model_instance, column_name, raw_string, json_exception)
-        @json_exception = json_exception
+      def initialize(model_instance, column_name, raw_string, exception)
+        @exception = exception
         super(model_instance, column_name, raw_string)
       end
 
       private
       def create_message
-        super + %{, we got an exception: #{json_exception.message} (#{json_exception.class.name})}
+        super + %{, we got an exception: #{exception.message} (#{exception.class.name})}
+      end
+    end
+
+    class IncorrectlyEncodedStringInDatabaseError < UnparseableJsonInDatabaseError
+      attr_reader :invalid_chars_as_array, :raw_data_as_array
+
+      def initialize(model_instance, column_name, valid_part_of_string, ae, invalid_chars_as_array, raw_data_as_array)
+        @invalid_chars_as_array = invalid_chars_as_array
+        @raw_data_as_array = raw_data_as_array
+        super(model_instance, column_name, valid_part_of_string, ae)
+      end
+
+      private
+      def create_message
+        extra = %{\n\nThere are #{invalid_chars_as_array.length} invalid characters out of #{raw_data_as_array.length} total characters;
+some of the invalid chars are:
+
+}
+
+        extra += invalid_chars_as_array[0..19].map { |c| c.unpack("H*") }.join(" ")
+
+        super + extra
       end
     end
 

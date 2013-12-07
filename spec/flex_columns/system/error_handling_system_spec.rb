@@ -49,10 +49,30 @@ describe "FlexColumns error handling" do
     e.model_instance.should be(user)
     e.column_name.should == :user_attributes
     e.raw_string.should == "---unparseable json---"
-    e.json_exception.class.should == JSON::ParserError
+    e.exception.class.should == JSON::ParserError
   end
 
-  it "should return a nice error if the string isn't even a validly-encoded string"
+  it "should return a nice error if the string isn't even a validly-encoded string" do
+    user = ::UserBackdoor.new
+    user.name = 'User 1'
+    user.save!
+
+    user2 = ::User.find(user.id)
+
+    class << user2
+      def [](x)
+        if x.to_s == "user_attributes"
+          out = "\xC3\x28"
+          out = out.force_encoding("UTF-8") if out.respond_to?(:force_encoding)
+          out
+        else
+          super(x)
+        end
+      end
+    end
+
+    p user2.user_attributes.wants_email
+  end
 
   it "should fail before storing if the JSON produced is too long for the column" do
     user = ::User.new
