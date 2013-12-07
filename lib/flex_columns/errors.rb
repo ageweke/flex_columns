@@ -60,21 +60,39 @@ The JSON we produced was:
     class InvalidDataInDatabaseError < DataError
       attr_reader :model_instance, :column_name, :raw_string
 
-      def initialize(model_instance, column_name, raw_string)
+      def initialize(model_instance, column_name, raw_string, additional_message = nil)
         @model_instance = model_instance
         @column_name = column_name
         @raw_string = raw_string
+        @additional_message = additional_message
 
         super(create_message)
       end
 
       private
       def create_message
-        %{When parsing the JSON#{maybe_model_instance_description}, which is:
+        out = %{When parsing the JSON#{maybe_model_instance_description}, which is:
 
 #{FlexColumns::Utilities.abbreviated_string(raw_string)}
 
 }
+        out += additional_message if additional_message
+        out
+      end
+    end
+
+    class InvalidFlexColumnsVersionNumberInDatabaseError < InvalidDataInDatabaseError
+      attr_reader :version_number_in_database, :max_version_number_supported
+
+      def initialize(model_instance, column_name, raw_string, version_number_in_database, max_version_number_supported)
+        @version_number_in_database = version_number_in_database
+        @max_version_number_supported = max_version_number_supported
+        super(model_instance, column_name, raw_string)
+      end
+
+      private
+      def create_message
+        super + %{, we got a version number in the database, #{version_number_in_database}, which is greater than our maximum supported version number, #{max_version_number_supported}.}
       end
     end
 

@@ -2,6 +2,8 @@ require 'active_model'
 require 'flex_columns/errors'
 require 'flex_columns/field_definition'
 require 'flex_columns/dynamic_methods_module'
+require 'stringio'
+require 'zlib'
 
 module FlexColumns
   class FlexColumnBase
@@ -80,6 +82,14 @@ module FlexColumns
         options[:visibility] == :private
       end
 
+      def is_binary_column?
+        @is_binary_column
+      end
+
+      def can_compress?
+        is_binary_column? && (! (options.has_key?(:compress) && (! options[:compress])))
+      end
+
       def setup!(model_class, column_name, options = { }, &block)
         raise ArgumentError, "You can't set model and column twice!" if @model_class || @column
 
@@ -100,7 +110,11 @@ named that.
 It has columns named: #{model_class.columns.map(&:name).sort.join(", ")}.}
         end
 
-        unless column.text?
+        if column.type == :binary
+          @is_binary_column = true
+        elsif column.text?
+          @is_binary_column = false
+        else
           raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
 that column (on model #{model_class.name}) isn't of a type that accepts text.
 That column is of type: #{column.type.inspect}.}
@@ -157,7 +171,7 @@ That column is of type: #{column.type.inspect}.}
           raise ArgumentError, "You must pass a Hash, not: #{options.inspect}"
         end
 
-        options.assert_valid_keys(:visibility, :prefix, :delegate, :unknown_fields)
+        options.assert_valid_keys(:visibility, :prefix, :delegate, :unknown_fields, :compress)
 
         unless [ nil, :private, :public ].include?(options[:visibility])
           raise ArgumentError, "Invalid value for :visibility: #{options[:visibility.inspect]}"
@@ -165,6 +179,10 @@ That column is of type: #{column.type.inspect}.}
 
         unless [ :delete, :preserve, nil ].include?(options[:unknown_fields])
           raise ArgumentError, "Invalid value for :unknown_fields: #{options[:unknown_fields].inspect}"
+        end
+
+        unless [ true, false, nil ].include?(options[:compress])
+          raise ArgumentError, "Invalid value for :compress: #{options[:compress].inspect}"
         end
 
         case options[:prefix]
@@ -274,6 +292,25 @@ not #{input.inspect} (#{input.object_id}).}
           parsed = nil
 
           instrument("deserialize", :raw_data => raw_data) do
+            if raw_data =~ /^(\d+),(\d+),(.*)$/i
+              version_number = Integer($1)
+              compressed = Integer($2)
+              remaining_data = $3
+
+              if version_number > FLEX_COLUMN_CURRENT_VERSION_NUMBER
+                raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError(model_instance, column_name, raw_data, version_number, FLEX_COLUMN_CURRENT_VERSION_NUMBER)
+              end
+
+              case compressed
+              when 0 then raw_data = remaining_data
+              when 1 then
+                input = StringIO.new(remaining_data)
+                reader = Zlib::GzipReader.new(input)
+                raw_data = reader.read
+              else raise FlexColumns::Errors::InvalidDataInDatabaseError(model_instance, column_name, raw_data, "the compression number was #{compressed.inspect}, not 0 or 1.")
+              end
+            end
+
             begin
               parsed = JSON.parse(raw_data)
             rescue ::JSON::ParserError => pe
@@ -298,10 +335,38 @@ not #{input.inspect} (#{input.object_id}).}
       end
     end
 
+    FLEX_COLUMN_CURRENT_VERSION_NUMBER = 1
+    MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
+
     def serialize_if_necessary!
       if field_contents
         instrument("serialize") do
-          model_instance[column_name] = to_json
+          json_string = to_json
+
+          if self.class.is_binary_column?
+            json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+            result = "%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
+
+            if self.class.can_compress? && json_string.length > MAX_JSON_LENGTH_BEFORE_COMPRESSION
+              result += "1,"
+              result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+
+              output = StringIO.new("w")
+              writer = Zlib::GzipWriter.new(output)
+              writer.write(json_string)
+              writer.close
+
+              result += output.string
+            else
+              result += "0,"
+              result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+              result += json_string
+            end
+
+            model_instance[column_name] = result
+          else
+            model_instance[column_name] = to_json
+          end
         end
       end
     end
