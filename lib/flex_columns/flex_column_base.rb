@@ -227,6 +227,10 @@ not #{input.inspect} (#{input.object_id}).}
       field_contents[field_name] = new_value
     end
 
+    def check!
+      deserialize_if_necessary!
+    end
+
     def before_validation!
       unless valid?
         errors.each do |name, message|
