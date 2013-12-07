@@ -179,11 +179,6 @@ describe "FlexColumns basic operations" do
       output['foo'].should == 47.2
     end
 
-    # dynamism:
-    it "should let you redefine flex columns, and obey the new settings"
-    it "should discard all attributes when #reload is called"
-    it "should use the most-recently-defined flex-column attribute in delegation, if there's a conflict"
-
     # performance:
     it "should not deserialize columns if they aren't touched"
     it "should not deserialize columns to run validations if there aren't any"
@@ -193,5 +188,15 @@ describe "FlexColumns basic operations" do
     it "should return a nice error if JSON parsing fails"
     it "should return a nice error if the string isn't even a validly-encoded string"
     it "should fail before storing if the JSON produced is too long for the column"
+
+    # bulk:
+    it "should allow deserializing a field in the absence of an ActiveRecord model"
+    it "should allow serializing a field in the absence of an ActiveRecord model"
+
+    # custom methods:
+    it "should allow defining custom methods on the attribute class"
+    it "should delegate those methods to the enclosing class"
+    it "should not delegate those methods to the enclosing class if told not to"
+    it "should delegate those methods to the enclosing class privately if told to"
   end
 end

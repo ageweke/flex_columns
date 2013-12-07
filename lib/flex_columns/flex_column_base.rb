@@ -72,7 +72,7 @@ module FlexColumns
         options[:visibility] == :private
       end
 
-      def setup!(model_class, column_name, options = { })
+      def setup!(model_class, column_name, options = { }, &block)
         raise ArgumentError, "You can't set model and column twice!" if @model_class || @column
 
         unless model_class.kind_of?(Class) && model_class.respond_to?(:has_any_flex_columns?) && model_class.has_any_flex_columns?
@@ -106,6 +106,10 @@ That column is of type: #{column.type.inspect}.}
 
         class_name = "FlexColumn#{column_name.to_s.camelize}".to_sym
         @model_class.const_set(class_name, self)
+
+        methods_before = instance_methods
+        class_eval(&block) if block
+        @custom_methods = (instance_methods - methods_before).map(&:to_sym)
       end
 
       def sync_methods!
@@ -115,13 +119,25 @@ That column is of type: #{column.type.inspect}.}
         @fields.values.each do |field_definition|
           field_definition.add_methods_to_flex_column_class!(@dynamic_methods_module)
           field_definition.add_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
+          add_custom_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
         end
       end
 
       attr_reader :model_class, :column
 
       private
-      attr_reader :fields, :options
+      attr_reader :fields, :options, :custom_methods
+
+      def add_custom_methods_to_model_class!(dynamic_methods_module)
+        cn = column_name
+
+        custom_methods.each do |custom_method|
+          dynamic_methods_module.define_method(custom_method) do |*args, &block|
+            flex_object = send(cn)
+            flex_object.send(custom_method, *args, &block)
+          end
+        end
+      end
 
       def validate_options(options)
         unless options.kind_of?(Hash)

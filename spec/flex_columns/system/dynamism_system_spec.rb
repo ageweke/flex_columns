@@ -22,12 +22,17 @@ describe "FlexColumns basic operations" do
       flex_column :user_attributes do
         field :att1
         field :att2
+
+        def abc
+          "abc!"
+        end
       end
     end
 
     user = ::User.new
     user.att1 = "foo"
     user.att2 = "bar"
+    user.abc.should == 'abc!'
 
     class ::User < ::ActiveRecord::Base
       self.table_name = 'flexcols_spec_users'
@@ -35,12 +40,18 @@ describe "FlexColumns basic operations" do
       flex_column :user_attributes do
         field :att3
         field :att2
+
+        def def
+          "def!"
+        end
       end
     end
 
     user2 = ::User.new
     user2.respond_to?(:att1).should_not be
     user2.user_attributes.respond_to?(:att1).should_not be
+    user2.respond_to?(:abc).should_not be
+    user2.user_attributes.respond_to?(:def).should_not be
 
     # explicitly not testing if user.respond_to?(:att3) or if user.respond_to?)(:att1); we make no guarantees about
     # what happened on older objects
@@ -59,6 +70,10 @@ describe "FlexColumns basic operations" do
     user3.user_attributes.respond_to?(:att1).should be
     user3.respond_to?(:att2).should be
     user3.user_attributes.respond_to?(:att2).should be
+    user3.user_attributes.respond_to?(:abc).should_not be
+    user3.respond_to?(:abc).should_not be
+    user3.user_attributes.respond_to?(:def).should_not be
+    user3.respond_to?(:def).should_not be
   end
 
   it "should discard all attributes when #reload is called" do

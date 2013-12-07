@@ -79,8 +79,7 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
         flex_column_name = _flex_column_normalize_name(flex_column_name)
 
         new_class = Class.new(FlexColumns::FlexColumnBase)
-        new_class.setup!(self, flex_column_name, options)
-        new_class.class_eval(&block)
+        new_class.setup!(self, flex_column_name, options, &block)
 
         _flex_column_classes.delete_if { |fcc| fcc.column_name == flex_column_name }
         _flex_column_classes << new_class
