@@ -179,18 +179,9 @@ describe "FlexColumns basic operations" do
       output['foo'].should == 47.2
     end
 
-    # performance:
-    it "should not deserialize columns if they aren't touched"
-    it "should not deserialize columns to run validations if there aren't any"
-    it "should deserialize columns to run validations if there are any"
-
     # error handling:
     it "should return a nice error if JSON parsing fails"
     it "should return a nice error if the string isn't even a validly-encoded string"
     it "should fail before storing if the JSON produced is too long for the column"
-
-    # bulk:
-    it "should allow deserializing a field in the absence of an ActiveRecord model"
-    it "should allow serializing a field in the absence of an ActiveRecord model"
   end
 end

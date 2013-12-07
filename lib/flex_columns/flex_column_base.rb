@@ -248,20 +248,34 @@ not #{input.inspect} (#{input.object_id}).}
       field_contents.keys.sort_by { |x| x.to_s }
     end
 
+    def instrument(name, additional = { }, &block)
+      base = {
+        :model_class => self.class.model_class,
+        :model => model_instance,
+        :column_name => column_name
+      }
+
+      ::ActiveSupport::Notifications.instrument("flex_columns.#{name}", base.merge(additional), &block)
+    end
+
     def deserialize_if_necessary!
       unless field_contents
         raw_data = if model_instance then model_instance[column_name] else raw_string end
         raw_data = (raw_data || '').strip
 
         if raw_data.length > 0
-          parsed = begin
-            JSON.parse(raw_data)
-          rescue JSON::ParserError => pe
-            raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(model_instance, column_name, raw_data, pe)
-          end
+          parsed = nil
 
-          unless parsed.kind_of?(Hash)
-            raise FlexColumns::Errors::InvalidJsonInDatabaseError.new(model_instance, column_name, raw_data, parsed)
+          instrument("deserialize", :raw_data => raw_data) do
+            begin
+              parsed = JSON.parse(raw_data)
+            rescue JSON::ParserError => pe
+              raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(model_instance, column_name, raw_data, pe)
+            end
+
+            unless parsed.kind_of?(Hash)
+              raise FlexColumns::Errors::InvalidJsonInDatabaseError.new(model_instance, column_name, raw_data, parsed)
+            end
           end
 
           parsed = parsed.symbolize_keys
@@ -279,7 +293,9 @@ not #{input.inspect} (#{input.object_id}).}
 
     def serialize_if_necessary!
       if field_contents
-        model_instance[column_name] = to_json
+        instrument("serialize") do
+          model_instance[column_name] = to_json
+        end
       end
     end
 
@@ -322,7 +338,7 @@ not #{input.inspect} (#{input.object_id}).}
     end
 
     def column_name
-      self.class.column.name
+      self.class.column_name
     end
 
     def column
