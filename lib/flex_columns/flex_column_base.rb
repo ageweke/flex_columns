@@ -263,14 +263,12 @@ not #{input.inspect} (#{input.object_id}).}
         raw_data = if model_instance then model_instance[column_name] else raw_string end
         raw_data ||= ''
 
-        begin
-          # Make sure we trigger an encoding error, if the encoding is bogus
-          raw_data = raw_data.strip
-          raw_data.length
-        rescue ArgumentError => ae
+        if raw_data.respond_to?(:valid_encoding?) && (! raw_data.valid_encoding?)
           (valid_chars, invalid_chars) = raw_data.chars.partition { |i| i.valid_encoding? }
-          raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(model_instance, column_name, valid_chars.join, ae, invalid_chars, raw_data.chars)
+          raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(model_instance, column_name, valid_chars.join, invalid_chars, raw_data.chars)
         end
+
+        raw_data = raw_data.strip
 
         if raw_data.length > 0
           parsed = nil

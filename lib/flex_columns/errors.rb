@@ -79,34 +79,57 @@ The JSON we produced was:
     end
 
     class UnparseableJsonInDatabaseError < InvalidDataInDatabaseError
-      attr_reader :exception
+      attr_reader :source_exception
 
-      def initialize(model_instance, column_name, raw_string, exception)
-        @exception = exception
+      def initialize(model_instance, column_name, raw_string, source_exception)
+        @source_exception = source_exception
         super(model_instance, column_name, raw_string)
       end
 
       private
       def create_message
-        super + %{, we got an exception: #{exception.message} (#{exception.class.name})}
+        source_message = source_exception.message
+
+        if source_message.respond_to?(:force_encoding)
+          source_message.force_encoding("UTF-8")
+          source_message = source_message.chars.select { |c| c.valid_encoding? }.join
+        end
+
+        super + %{, we got an exception: #{source_message} (#{source_exception.class.name})}
       end
     end
 
-    class IncorrectlyEncodedStringInDatabaseError < UnparseableJsonInDatabaseError
-      attr_reader :invalid_chars_as_array, :raw_data_as_array
+    class IncorrectlyEncodedStringInDatabaseError < InvalidDataInDatabaseError
+      attr_reader :invalid_chars_as_array, :raw_data_as_array, :first_bad_position
 
-      def initialize(model_instance, column_name, valid_part_of_string, ae, invalid_chars_as_array, raw_data_as_array)
+      def initialize(model_instance, column_name, valid_part_of_string, invalid_chars_as_array, raw_data_as_array)
         @invalid_chars_as_array = invalid_chars_as_array
         @raw_data_as_array = raw_data_as_array
-        super(model_instance, column_name, valid_part_of_string, ae)
+        @first_bad_position = find_first_bad_position
+        super(model_instance, column_name, valid_part_of_string)
       end
 
       private
-      def create_message
-        extra = %{\n\nThere are #{invalid_chars_as_array.length} invalid characters out of #{raw_data_as_array.length} total characters;
-some of the invalid chars are:
+      def find_first_bad_position
+        out = nil
+        raw_data_as_array.each_with_index do |char, i|
+          if (! char.valid_encoding?)
+            out = i
+            break
+          end
+        end
+        out || :unknown
+      end
 
-}
+      def create_message
+
+        extra = %{\n\nThere are #{invalid_chars_as_array.length} invalid characters out of #{raw_data_as_array.length} total characters.
+(The string above showing the original JSON omits them, so that it's actually a valid String.)
+The first bad character occurs at position #{first_bad_position}.
+
+Some of the invalid chars are (in hex):
+
+    }
 
         extra += invalid_chars_as_array[0..19].map { |c| c.unpack("H*") }.join(" ")
 

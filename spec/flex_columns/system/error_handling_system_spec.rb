@@ -42,14 +42,14 @@ describe "FlexColumns error handling" do
     user = ::User.find(user_bd_1.id)
 
     e = capture_exception(FlexColumns::Errors::UnparseableJsonInDatabaseError) { user.wants_email }
-    e.message.should match(/user.*id.*1/i)
+    e.message.should match(/user.*id.*#{user.id}/i)
     e.message.should match(/\-\-\-unparseable json\-\-\-/i)
     e.message.should match(/JSON::ParserError/i)
 
     e.model_instance.should be(user)
     e.column_name.should == :user_attributes
     e.raw_string.should == "---unparseable json---"
-    e.exception.class.should == JSON::ParserError
+    e.source_exception.class.should == JSON::ParserError
   end
 
   it "should return a nice error if the string isn't even a validly-encoded string" do
@@ -62,7 +62,7 @@ describe "FlexColumns error handling" do
     class << user2
       def [](x)
         if x.to_s == "user_attributes"
-          out = "\xC3\x28"
+          out = "abc\xC3\x28def"
           out = out.force_encoding("UTF-8") if out.respond_to?(:force_encoding)
           out
         else
@@ -71,7 +71,30 @@ describe "FlexColumns error handling" do
       end
     end
 
-    p user2.user_attributes.wants_email
+    if "foo".respond_to?(:force_encoding) # do we have Ruby >= 1.9?
+      e = capture_exception(FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError) { user2.wants_email }
+      e.message.should match(/user.*id.*#{user2.id}/i)
+      e.message.should match(/abc.*def/i)
+      e.message.should match(/position 3/i)
+      e.message.should match(/c3/i)
+
+      e.model_instance.should be(user2)
+      e.column_name.should == :user_attributes
+      e.raw_string.should match(/abc.*def/i)
+      e.invalid_chars_as_array.include?("\xC3").should be
+      e.raw_data_as_array.include?("\xC3").should be
+      e.raw_data_as_array.include?("a").should be
+      e.first_bad_position.should == 3
+    else
+      e = capture_exception(FlexColumns::Errors::UnparseableJsonInDatabaseError) { user2.wants_email }
+      e.message.should match(/user.*id.*#{user2.id}/i)
+      e.message.should match(/abc.*def/i)
+      e.message.should match(/JSON::ParserError/i)
+
+      e.model_instance.should be(user2)
+      e.column_name.should == :user_attributes
+      e.raw_string.should match(/abc.*def/i)
+    end
   end
 
   it "should fail before storing if the JSON produced is too long for the column" do
