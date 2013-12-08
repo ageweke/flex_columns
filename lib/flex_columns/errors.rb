@@ -58,7 +58,7 @@ The JSON we produced was:
     end
 
     class InvalidDataInDatabaseError < DataError
-      attr_reader :model_instance, :column_name, :raw_string
+      attr_reader :model_instance, :column_name, :raw_string, :additional_message
 
       def initialize(model_instance, column_name, raw_string, additional_message = nil)
         @model_instance = model_instance

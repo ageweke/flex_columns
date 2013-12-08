@@ -67,6 +67,35 @@ describe "FlexColumns compression operations" do
     data.should_not match(/bar/)
   end
 
+  it "should read compressed data fine, even if told not to compress new data" do
+    user = ::User.new
+    user.name = 'User 1'
+    user.foo = 'foo' * 1000
+    user.bar = 'bar1'
+    user.save!
+
+    user_again = ::User.find(user.id)
+    user_again.foo.should == 'foo' * 1000
+    user_again.bar.should == 'bar1'
+
+    user_bd = ::UserBackdoor.find(user.id)
+    data = user_bd.user_attributes
+    data.length.should < 1000
+    data.should_not match(/foo/)
+    data.should_not match(/bar/)
+
+    define_model_class(:User2, 'flexcols_spec_users') do
+      flex_column :user_attributes, :compress => false do
+        field :foo
+        field :bar
+      end
+    end
+
+    user2 = ::User2.find(user.id)
+    user.foo.should == 'foo' * 1000
+    user.bar.should == 'bar1'
+  end
+
   it "should not compress long data, if asked not to" do
     define_model_class(:User, 'flexcols_spec_users') do
       flex_column :user_attributes, :compress => false do
