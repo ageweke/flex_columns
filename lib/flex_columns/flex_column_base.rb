@@ -28,6 +28,13 @@ module FlexColumns
         true
       end
 
+      MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
+
+      def max_json_length_before_compression
+        return options[:compress] if options[:compress].kind_of?(Integer)
+        MAX_JSON_LENGTH_BEFORE_COMPRESSION
+      end
+
       def include_fields_into(dynamic_methods_module, association_name, options)
         @fields.values.each do |field_definition|
           field_definition.add_methods_to_included_class!(dynamic_methods_module, association_name, options)
@@ -181,7 +188,7 @@ That column is of type: #{column.type.inspect}.}
           raise ArgumentError, "Invalid value for :unknown_fields: #{options[:unknown_fields].inspect}"
         end
 
-        unless [ true, false, nil ].include?(options[:compress])
+        unless [ true, false, nil ].include?(options[:compress]) || options[:compress].kind_of?(Integer)
           raise ArgumentError, "Invalid value for :compress: #{options[:compress].inspect}"
         end
 
@@ -292,10 +299,11 @@ not #{input.inspect} (#{input.object_id}).}
           parsed = nil
 
           instrument("deserialize", :raw_data => raw_data) do
-            if raw_data =~ /^(\d+),(\d+),(.*)$/i
-              version_number = Integer($1)
-              compressed = Integer($2)
-              remaining_data = $3
+            if raw_data =~ /^((\d+),(\d+),)/i
+              prefix = $1
+              version_number = Integer($2)
+              compressed = Integer($3)
+              remaining_data = raw_data[prefix.length..-1]
 
               if version_number > FLEX_COLUMN_CURRENT_VERSION_NUMBER
                 raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError(model_instance, column_name, raw_data, version_number, FLEX_COLUMN_CURRENT_VERSION_NUMBER)
@@ -336,7 +344,7 @@ not #{input.inspect} (#{input.object_id}).}
     end
 
     FLEX_COLUMN_CURRENT_VERSION_NUMBER = 1
-    MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
+    MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION = 0.95
 
     def serialize_if_necessary!
       if field_contents
@@ -347,16 +355,21 @@ not #{input.inspect} (#{input.object_id}).}
             json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
             result = "%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
 
-            if self.class.can_compress? && json_string.length > MAX_JSON_LENGTH_BEFORE_COMPRESSION
-              result += "1,"
-              result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-
+            compressed = nil
+            if self.class.can_compress? && json_string.length > self.class.max_json_length_before_compression
               output = StringIO.new("w")
               writer = Zlib::GzipWriter.new(output)
               writer.write(json_string)
               writer.close
 
-              result += output.string
+              compressed = output.string
+            end
+
+            if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
+              result += "1,"
+              result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+
+              result += compressed
             else
               result += "0,"
               result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
