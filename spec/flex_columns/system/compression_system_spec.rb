@@ -92,6 +92,28 @@ describe "FlexColumns compression operations" do
     data.should match(/bar1/)
   end
 
+  it "should not compress data if the compressed version is bigger" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :compress => 1 do
+        field :foo
+        field :bar
+      end
+    end
+
+    user = ::User.new
+    user.name = 'User 1'
+    user.foo = 'f'
+    user.save!
+
+    user_again = ::User.find(user.id)
+    user_again.foo.should == 'f'
+    user_again.bar.should be_nil
+
+    user_bd = ::UserBackdoor.find(user.id)
+    data = user_bd.user_attributes
+    data.should match(/^01,0,\{/i)
+  end
+
   it "should not compress data under a certain limit, if asked to" do
     define_model_class(:User, 'flexcols_spec_users') do
       flex_column :user_attributes, :compress => 10_000 do
