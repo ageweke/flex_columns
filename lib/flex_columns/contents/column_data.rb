@@ -146,13 +146,17 @@ module FlexColumns
         stream.string
       end
 
-      def decompress(data)
-        input = StringIO.new(data, "r")
-        reader = Zlib::GzipReader.new(input)
-        reader.read
+      def decompress(data, raw_data)
+        begin
+          input = StringIO.new(data, "r")
+          reader = Zlib::GzipReader.new(input)
+          reader.read
+        rescue Zlib::GzipFile::Error => gze
+          raise FlexColumns::Errors::InvalidCompressedDataInDatabaseError.new(data_source, raw_data, gze)
+        end
       end
 
-      def from_storage(storage_string)
+      def from_stored_data(storage_string)
         if storage_string =~ /^(FC:(\d+),(\d+),)/i
           prefix = $1
           version_number = Integer($2)
@@ -160,15 +164,15 @@ module FlexColumns
           remaining_data = storage_string[prefix.length..-1]
 
           if version_number > FLEX_COLUMN_CURRENT_VERSION_NUMBER
-            raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError(
+            raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError.new(
               data_source, storage_string, version_number, FLEX_COLUMN_CURRENT_VERSION_NUMBER)
           end
 
           case compressed
           when 0 then remaining_data
-          when 1 then decompress(remaining_data)
-          else raise FlexColumns::Errors::InvalidDataInDatabaseError(
-            data_source, raw_data, "the compression number was #{compressed.inspect}, not 0 or 1.")
+          when 1 then decompress(remaining_data, storage_string)
+          else raise FlexColumns::Errors::InvalidDataInDatabaseError.new(
+            data_source, storage_string, "the compression number was #{compressed.inspect}, not 0 or 1.")
           end
         else
           storage_string
@@ -215,7 +219,7 @@ module FlexColumns
 
           if raw_data.length > 0
             parsed = instrument("deserialize", :raw_data => raw_data) do
-              parse_json(from_storage(raw_data))
+              parse_json(from_stored_data(raw_data))
             end
 
             store_fields!(parsed)

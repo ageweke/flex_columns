@@ -117,6 +117,7 @@ describe FlexColumns::Contents::ColumnData do
         e.data_source.should be(@data_source)
         e.raw_string.should == bogus_json
         e.source_exception.kind_of?(JSON::ParserError).should be
+        e.message.should match(/describedescribe/)
       end
 
       it "should raise an error if the JSON doesn't represent a Hash" do
@@ -127,10 +128,88 @@ describe FlexColumns::Contents::ColumnData do
         e.data_source.should be(@data_source)
         e.raw_string.should == bogus_json
         e.returned_data.should == [ 1, 2, 3 ]
+        e.message.should match(/describedescribe/)
       end
 
       it "should accept uncompressed strings with a header" do
+        instance = new_with_string("FC:01,0,#{@json_string}")
+        instance[:foo].should == "bar"
+        instance[:bar].should == 123
+        instance[:baz].should == "quux"
+      end
 
+      it "should accept compressed strings with a header" do
+        require 'stringio'
+        stream = StringIO.new("w")
+        writer = Zlib::GzipWriter.new(stream)
+        writer.write(@json_string)
+        writer.close
+
+        header = "FC:01,1,"
+        header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
+        instance = new_with_string(header + stream.string)
+        instance[:foo].should == "bar"
+        instance[:bar].should == 123
+        instance[:baz].should == "quux"
+      end
+
+      it "should fail if the version number is too big" do
+        bad_string = "FC:02,0,#{@json_string}"
+        instance = new_with_string(bad_string)
+
+        e = capture_exception(FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError) { instance[:foo] }
+        e.data_source.should be(@data_source)
+        e.raw_string.should == bad_string.strip
+        e.version_number_in_database.should == 2
+        e.max_version_number_supported.should == 1
+        e.message.should match(/describedescribe/)
+      end
+
+      it "should fail if the compression number is too big" do
+        require 'stringio'
+        stream = StringIO.new("w")
+        writer = Zlib::GzipWriter.new(stream)
+        writer.write(@json_string)
+        writer.close
+
+        header = "FC:01,2,"
+        header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
+        bad_string = header + stream.string
+
+        instance = new_with_string(bad_string)
+        e = capture_exception(FlexColumns::Errors::InvalidDataInDatabaseError) { instance[:foo] }
+        e.data_source.should be(@data_source)
+        e.raw_string.should == bad_string.strip
+        e.message.should match(/2/)
+        e.message.should match(/describedescribe/)
+      end
+
+      it "should fail if the compressed data is bogus" do
+        require 'stringio'
+        stream = StringIO.new("w")
+        writer = Zlib::GzipWriter.new(stream)
+        writer.write(@json_string)
+        writer.close
+        compressed_data = stream.string
+
+        100.times do
+          pos_1 = rand(10)
+          pos_2 = rand(10)
+          tmp = compressed_data[pos_1]
+          compressed_data[pos_1] = compressed_data[pos_2]
+          compressed_data[pos_2] = tmp
+        end
+
+        header = "FC:01,1,"
+        header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
+        bad_string = header + compressed_data
+
+        instance = new_with_string(bad_string)
+        e = capture_exception(FlexColumns::Errors::InvalidCompressedDataInDatabaseError) { instance[:foo] }
+        e.data_source.should be(@data_source)
+        e.raw_string.should == bad_string.strip
+        e.source_exception.class.should == Zlib::GzipFile::Error
+        e.message.should match(/describedescribe/)
       end
     end
 

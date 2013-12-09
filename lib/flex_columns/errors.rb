@@ -86,6 +86,22 @@ The JSON we produced was:
       end
     end
 
+    class InvalidCompressedDataInDatabaseError < InvalidDataInDatabaseError
+      attr_reader :source_exception
+
+      def initialize(data_source, raw_string, source_exception)
+        @source_exception = source_exception
+        super(data_source, raw_string)
+      end
+
+      private
+      def create_message
+        super + %{, we got an exception when trying to decompress the data:
+
+#{source_exception} (#{source_exception.class.name})}
+      end
+    end
+
     class InvalidFlexColumnsVersionNumberInDatabaseError < InvalidDataInDatabaseError
       attr_reader :version_number_in_database, :max_version_number_supported
 
