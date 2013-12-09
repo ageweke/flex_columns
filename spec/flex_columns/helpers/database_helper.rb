@@ -77,6 +77,25 @@ module FlexColumns
                 :encoding => 'utf8'
               }
             }
+          when 'postgresql'
+            {
+              :require => 'activerecord-jdbcpostgresql-adapter',
+              :database_gem_name => 'activerecord-jdbcpostgresql-adapter',
+              :config => {
+                :adapter => 'jdbcpostgresql',
+                :database => 'myapp_test',
+                :username => 'postgres'
+              }
+            }
+          when 'sqlite'
+            {
+              :require => 'activerecord-jdbcsqlite3-adapter',
+              :database_gem_name => 'activerecord-jdbcsqlite3-adapter',
+              :config => {
+                :adapter => 'jdbcsqlite3',
+                :database => ':memory:'
+              }
+            }
           when '', nil then nil
           else
             raise "Unknown Travis CI database type: #{dbtype.inspect}"
