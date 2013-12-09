@@ -203,7 +203,7 @@ describe FlexColumns::Contents::ColumnData do
 
         e = capture_exception(FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError) { instance[:foo] }
         e.data_source.should be(@data_source)
-        e.raw_string.should == bad_string.strip
+        e.raw_string.should == bad_string
         e.version_number_in_database.should == 2
         e.max_version_number_supported.should == 1
         e.message.should match(/describedescribe/)
@@ -224,7 +224,7 @@ describe FlexColumns::Contents::ColumnData do
         instance = new_with_string(bad_string)
         e = capture_exception(FlexColumns::Errors::InvalidDataInDatabaseError) { instance[:foo] }
         e.data_source.should be(@data_source)
-        e.raw_string.should == bad_string.strip
+        e.raw_string.should == bad_string
         e.message.should match(/2/)
         e.message.should match(/describedescribe/)
       end
@@ -253,7 +253,7 @@ describe FlexColumns::Contents::ColumnData do
         instance = new_with_string(bad_string)
         e = capture_exception(FlexColumns::Errors::InvalidCompressedDataInDatabaseError) { instance[:foo] }
         e.data_source.should be(@data_source)
-        e.raw_string.should == bad_string.strip
+        e.raw_string.should == bad_string
         e.source_exception.class.should == Zlib::GzipFile::Error
         e.message.should match(/describedescribe/)
       end
@@ -281,7 +281,7 @@ describe FlexColumns::Contents::ColumnData do
 
         @instance[:foo].should == 'bar'
         @deserializations.length.should == 1
-        @deserializations[0].should == { :notif1 => :a, :notif2 => :b, :raw_data => @json_string.strip }
+        @deserializations[0].should == { :notif1 => :a, :notif2 => :b, :raw_data => @json_string }
       end
 
       it "should trigger a notification on serialization" do

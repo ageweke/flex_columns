@@ -215,9 +215,7 @@ module FlexColumns
             raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(data_source, raw_data)
           end
 
-          raw_data = raw_data.strip
-
-          if raw_data.length > 0
+          if raw_data.strip.length > 0
             parsed = instrument("deserialize", :raw_data => raw_data) do
               parse_json(from_stored_data(raw_data))
             end
