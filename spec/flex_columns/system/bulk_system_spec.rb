@@ -24,7 +24,10 @@ describe "FlexColumns bulk operations" do
     end
   end
 
-  it "should be able to instantiate fields without an ActiveRecord model" do
+  it "should return #to_stored_data correctly"
+  it "should return #to_json correctly"
+
+  it "should be able to instantiate fields without an ActiveRecord model, and then serialize them again" do
     users = [ ]
     10.times do |i|
       user = ::User.new

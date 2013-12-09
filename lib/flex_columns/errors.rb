@@ -2,30 +2,19 @@ require 'flex_columns/utilities'
 
 module FlexColumns
   module Errors
-    class Base < ::StandardError
-      private
-      def maybe_model_instance_description
-        if model_instance
-          " on #{model_instance.class.name} ID #{model_instance.id.inspect}"
-        else
-          ""
-        end
-      end
-    end
+    class Base < StandardError; end
 
     class FieldError < Base; end
     class NoSuchFieldError < FieldError
-      attr_reader :model_instance, :column_name, :field_name, :all_field_names
+      attr_reader :data_source, :field_name, :all_field_names
 
-      def initialize(model_instance, column_name, field_name, all_field_names)
-        @model_instance = model_instance
-        @column_name = column_name
+      def initialize(data_source, field_name, all_field_names)
+        @data_source = data_source
         @field_name = field_name
         @all_field_names = all_field_names
 
-        super(%{You tried to set field #{field_name.inspect} of flex column #{column_name.inspect}
-#{maybe_model_instance_description}. However, there is no such field
-defined on that flex column; the defined fields are:
+        super(%{You tried to set field #{field_name.inspect} of #{data_source.describe_flex_column_data_source}.
+However, there is no such field defined on that flex column; the defined fields are:
 
   #{all_field_names.join(", ")}})
       end
@@ -56,17 +45,16 @@ These fields would conflict in the JSON store, and thus this is not allowed.})
     class DataError < Base; end
 
     class JsonTooLongError < DataError
-      attr_reader :model_instance, :column_name, :limit, :json_string
+      attr_reader :data_source, :limit, :json_string
 
-      def initialize(model_instance, column_name, limit, json_string)
-        @model_instance = model_instance
-        @column_name = column_name
+      def initialize(data_source, limit, json_string)
+        @data_source = data_source
         @limit = limit
         @json_string = json_string
 
-        super(%{When trying to serialize JSON for the flex column #{column_name.inspect}
-#{maybe_model_instance_description}, the JSON produced was too long
-to fit in the database. We produced #{json_string.length} characters of JSON, but the
+        super(%{When trying to serialize JSON for #{data_source.describe_flex_column_data_source},
+the JSON produced was too long to fit in the database.
+We produced #{json_string.length} characters of JSON, but the
 database's limit for that column is #{limit} characters.
 
 The JSON we produced was:
@@ -76,11 +64,10 @@ The JSON we produced was:
     end
 
     class InvalidDataInDatabaseError < DataError
-      attr_reader :model_instance, :column_name, :raw_string, :additional_message
+      attr_reader :data_source, :raw_string, :additional_message
 
-      def initialize(model_instance, column_name, raw_string, additional_message = nil)
-        @model_instance = model_instance
-        @column_name = column_name
+      def initialize(data_source, raw_string, additional_message = nil)
+        @data_source = data_source
         @raw_string = raw_string
         @additional_message = additional_message
 
@@ -89,7 +76,7 @@ The JSON we produced was:
 
       private
       def create_message
-        out = %{When parsing the JSON#{maybe_model_instance_description}, which is:
+        out = %{When parsing the JSON in #{data_source.describe_flex_column_data_source}, which is:
 
 #{FlexColumns::Utilities.abbreviated_string(raw_string)}
 
@@ -102,10 +89,10 @@ The JSON we produced was:
     class InvalidFlexColumnsVersionNumberInDatabaseError < InvalidDataInDatabaseError
       attr_reader :version_number_in_database, :max_version_number_supported
 
-      def initialize(model_instance, column_name, raw_string, version_number_in_database, max_version_number_supported)
+      def initialize(data_source, raw_string, version_number_in_database, max_version_number_supported)
         @version_number_in_database = version_number_in_database
         @max_version_number_supported = max_version_number_supported
-        super(model_instance, column_name, raw_string)
+        super(data_source, raw_string)
       end
 
       private
@@ -117,9 +104,9 @@ The JSON we produced was:
     class UnparseableJsonInDatabaseError < InvalidDataInDatabaseError
       attr_reader :source_exception
 
-      def initialize(model_instance, column_name, raw_string, source_exception)
+      def initialize(data_source, raw_string, source_exception)
         @source_exception = source_exception
-        super(model_instance, column_name, raw_string)
+        super(data_source, raw_string)
       end
 
       private
@@ -138,7 +125,7 @@ The JSON we produced was:
     class IncorrectlyEncodedStringInDatabaseError < InvalidDataInDatabaseError
       attr_reader :invalid_chars_as_array, :raw_data_as_array, :first_bad_position
 
-      def initialize(model_instance, column_name, raw_string)
+      def initialize(data_source, raw_string)
         @raw_data_as_array = raw_string.chars.to_a
         @valid_chars_as_array = [ ]
         @invalid_chars_as_array = [ ]
@@ -152,7 +139,7 @@ The JSON we produced was:
         end
         @first_bad_position ||= :unknown
 
-        super(model_instance, column_name, @valid_chars_as_array.join)
+        super(data_source, @valid_chars_as_array.join)
       end
 
       private
@@ -174,8 +161,8 @@ Some of the invalid chars are (in hex):
     class InvalidJsonInDatabaseError < InvalidDataInDatabaseError
       attr_reader :returned_data
 
-      def initialize(model_instance, column_name, raw_string, returned_data)
-        super(model_instance, column_name, raw_string)
+      def initialize(data_source, raw_string, returned_data)
+        super(data_source, raw_string)
         @returned_data = returned_data
       end
 

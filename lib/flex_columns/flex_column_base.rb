@@ -1,69 +1,53 @@
 require 'active_model'
 require 'flex_columns/errors'
-require 'flex_columns/field_definition'
 require 'flex_columns/dynamic_methods_module'
 require 'flex_columns/column_data'
+require 'flex_columns/field_set'
 
 module FlexColumns
   class FlexColumnBase
     include ActiveModel::Validations
 
     class << self
-      def field(name, *args)
-        options = args.pop if args[-1] && args[-1].kind_of?(Hash)
-        options ||= { }
+      DEFAULT_MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
 
-        name = FlexColumns::FieldDefinition.normalize_name(name)
+      def _flex_columns_create_column_data(json_string, data_source)
+        create_options = {
+          :json_string    => json_string,
+          :data_source    => data_source,
+          :unknown_fields => options[:unknown_fields] || :preserve,
+          :length_limit   => column.limit,
+          :storage        => column.type == :binary ? :binary : :text,
+          :field_set      => field_set
+        }
 
-        @fields ||= { }
-        @fields_by_json_storage_names ||= { }
-
-        field = FlexColumns::FieldDefinition.new(self, name, args, options)
-        same_json_storage_name_field = @fields_by_json_storage_names[field.json_storage_name]
-        if same_json_storage_name_field && same_json_storage_name_field.field_name != field.field_name
-          raise FlexColumns::Errors::ConflictingJsonStorageNameError.new(model_class, column_name, name, same_json_storage_name_field.field_name, field.json_storage_name)
+        if (! options.has_key?(:compress))
+          create_options[:compress_if_over_length] = DEFAULT_MAX_JSON_LENGTH_BEFORE_COMPRESSION
+        elsif options[:compress]
+          create_options[:compress_if_over_length] = options[:compress]
         end
 
-        @fields[name] = field
-        @fields_by_json_storage_names[field.json_storage_name] = field
+        FlexColumns::ColumnData.new(field_set, create_options)
       end
 
-      def field_named(field_name)
-        @fields[FlexColumns::FieldDefinition.normalize_name(field_name)]
+      def field(name, *args)
+        field_set.field(name, *args)
+      end
+
+      def field_named(name)
+        field_set.field_named(name)
       end
 
       def field_with_json_storage_name(json_storage_name)
-        @fields_by_json_storage_names[FlexColumns::FieldDefinition.normalize_name(json_storage_name)]
+        field_set.field_with_json_storage_name(json_storage_name)
       end
 
       def is_flex_column_class?
         true
       end
 
-      MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
-
-      def max_json_length_before_compression
-        return options[:compress] if options[:compress].kind_of?(Integer)
-        MAX_JSON_LENGTH_BEFORE_COMPRESSION
-      end
-
       def include_fields_into(dynamic_methods_module, association_name, options)
-        @fields.values.each do |field_definition|
-          field_definition.add_methods_to_included_class!(dynamic_methods_module, association_name, options)
-        end
-      end
-
-      def to_valid_field_name(field_name)
-        field_name = FlexColumns::FieldDefinition.normalize_name(field_name)
-        field_name if fields[field_name]
-      end
-
-      def all_field_names
-        @fields.keys.sort_by { |x| x.to_s }
-      end
-
-      def all_json_storage_names
-        @fields.values.map(&:json_storage_name).sort_by(&:to_s)
+        field_set.include_fields_into(dynamic_methods_module, association_name, options)
       end
 
       def object_for(model_instance)
@@ -72,18 +56,6 @@ module FlexColumns
 
       def delegation_prefix
         options[:prefix].try(:to_s)
-      end
-
-      def unknown_field_action
-        options[:unknown_fields] || :preserve
-      end
-
-      def new_from_raw_string(rs)
-        new(rs)
-      end
-
-      def new_from_nothing
-        new(nil)
       end
 
       def delegation_type
@@ -105,24 +77,14 @@ module FlexColumns
         options[:visibility] == :private
       end
 
-      def is_binary_column?
-        @is_binary_column
-      end
-
-      def can_compress?
-        is_binary_column? && (! (options.has_key?(:compress) && (! options[:compress])))
-      end
-
       def setup!(model_class, column_name, options = { }, &block)
-        raise ArgumentError, "You can't set model and column twice!" if @model_class || @column
+        raise ArgumentError, "You can't call setup! twice!" if @model_class || @column
 
         unless model_class.kind_of?(Class) && model_class.respond_to?(:has_any_flex_columns?) && model_class.has_any_flex_columns?
           raise ArgumentError, "Invalid model class: #{model_class.inspect}"
         end
 
-        unless column_name.kind_of?(Symbol)
-          raise ArgumentError, "Invalid column name: #{column_name.inspect}"
-        end
+        raise ArgumentError, "Invalid column name: #{column_name.inspect}" unless column_name.kind_of?(Symbol)
 
         column = model_class.columns.detect { |c| c.name.to_s == column_name.to_s }
         unless column
@@ -133,11 +95,7 @@ named that.
 It has columns named: #{model_class.columns.map(&:name).sort.join(", ")}.}
         end
 
-        if column.type == :binary
-          @is_binary_column = true
-        elsif column.text?
-          @is_binary_column = false
-        else
+        unless column.type == :binary || column.text?
           raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
 that column (on model #{model_class.name}) isn't of a type that accepts text.
 That column is of type: #{column.type.inspect}.}
@@ -148,6 +106,7 @@ That column is of type: #{column.type.inspect}.}
         @model_class = model_class
         @column = column
         @options = options
+        @field_set = FlexColumns::FieldSet.new(self)
 
         class_name = "FlexColumn#{column_name.to_s.camelize}".to_sym
         @model_class.send(:remove_const, class_name) if @model_class.const_defined?(class_name)
@@ -156,23 +115,21 @@ That column is of type: #{column.type.inspect}.}
         methods_before = instance_methods
         class_eval(&block) if block
         @custom_methods = (instance_methods - methods_before).map(&:to_sym)
+
       end
 
       def sync_methods!
         @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
         @dynamic_methods_module.remove_all_methods!
 
-        @fields.values.each do |field_definition|
-          field_definition.add_methods_to_flex_column_class!(@dynamic_methods_module)
-          field_definition.add_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
-          add_custom_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
-        end
+        field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module)
+        add_custom_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
       end
 
-      attr_reader :model_class, :column
+      attr_reader :model_class
 
       private
-      attr_reader :fields, :options, :custom_methods
+      attr_reader :fields, :options, :custom_methods, :field_set, :column
 
       def add_custom_methods_to_model_class!(dynamic_methods_module)
         return if (! delegation_type)
@@ -240,7 +197,32 @@ not #{input.inspect} (#{input.object_id}).}
       end
 
       json_string = raw_string || model_instance[self.class.column_name]
-      @column_data = FlexColumns::ColumnData.new(self.class, :json_string => json_string, :model_instance => @model_instance)
+      @column_data = self.class._flex_columns_create_column_data(json_string, self)
+    end
+
+    def describe_flex_column_data_source
+      if model_instance
+        out = self.class.model_class.name.dup
+        out << " ID #{model_instance.id}" if model_instance.id
+        out << ", column #{self.class.column_name.inspect}"
+      else
+        out << "(data passed in by client, for #{self.class.model_class.name}, column #{self.class.column_name.inspect})"
+      end
+    end
+
+    def notification_hash_for_flex_column_data_source
+      out = {
+        :model_class => self.class.model_class,
+        :column_name => self.class.column_name
+      }
+
+      if model_instance
+        out[:model] = model_instance
+      else
+        out[:source] = :passed_string
+      end
+
+      out
     end
 
     def to_model
@@ -260,6 +242,7 @@ not #{input.inspect} (#{input.object_id}).}
     end
 
     def before_validation!
+      return unless model_instance
       unless valid?
         errors.each do |name, message|
           model_instance.errors.add("#{column_name}.#{name}", message)
@@ -271,7 +254,12 @@ not #{input.inspect} (#{input.object_id}).}
       column_data.to_json
     end
 
+    def to_stored_data
+      column_data.to_stored_data
+    end
+
     def before_save!
+      return unless model_instance
       model_instance[column_name] = column_data.to_stored_data if column_data.touched?
     end
 

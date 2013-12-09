@@ -90,13 +90,13 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
       end
 
       def create_flex_object_from(column_name, raw_string)
-        _flex_column_class_for(column_name).new_from_raw_string(raw_string)
+        _flex_column_class_for(column_name).new(raw_string)
       end
 
       def create_flex_objects_from(column_name, raw_strings)
         column_class = _flex_column_class_for(column_name)
         raw_strings.map do |rs|
-          column_class.new_from_raw_string(rs)
+          column_class.new(rs)
         end
       end
 

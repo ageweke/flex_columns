@@ -46,8 +46,7 @@ describe "FlexColumns error handling" do
     e.message.should match(/\-\-\-unparseable json\-\-\-/i)
     e.message.should match(/JSON::ParserError/i)
 
-    e.model_instance.should be(user)
-    e.column_name.should == :user_attributes
+    e.data_source.should be(user.user_attributes)
     e.raw_string.should == "---unparseable json---"
     e.source_exception.class.should == JSON::ParserError
   end
@@ -78,8 +77,7 @@ describe "FlexColumns error handling" do
       e.message.should match(/position 3/i)
       e.message.should match(/c3/i)
 
-      e.model_instance.should be(user2)
-      e.column_name.should == :user_attributes
+      e.data_source.should be(user2.user_attributes)
       e.raw_string.should match(/abc.*def/i)
 
       invalid_char = ["C3"].pack("H*")
@@ -113,8 +111,7 @@ describe "FlexColumns error handling" do
     e.message.should match(/30[0-9][0-9][0-9]/i)
     e.message.length.should < 1000
 
-    e.model_instance.should be(user)
-    e.column_name.should == :user_attributes
+    e.data_source.should be(user.user_attributes)
     e.limit.should == 100
     e.json_string.length.should > 30000
   end
