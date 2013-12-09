@@ -21,7 +21,7 @@ module FlexColumns
         else raise ArgumentError, "Invalid JSON string: #{json_string.inspect}"
         end
 
-        raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::FieldSet)
+        raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::Definition::FieldSet)
         raise ArgumentError, "Must supply a data source, not: #{data_source.inspect}" unless data_source
         raise ArgumentError, "Invalid value for :unknown_fields: #{unknown_fields.inspect}" unless [ :preserve, :delete ].include?(unknown_fields)
         raise ArgumentError, "Invalid value for :length_limit: #{length_limit.inspect}" if length_limit && (! (length_limit.kind_of?(Integer) && length_limit >= 8))

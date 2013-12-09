@@ -98,7 +98,7 @@ module FlexColumns
         @model_class = model_class
         @column = column
         @options = options
-        @field_set = FlexColumns::FieldSet.new(self)
+        @field_set = FlexColumns::Definition::FieldSet.new(self)
 
         class_name = "#{column_name.to_s.camelize}FlexContents".to_sym
         @model_class.send(:remove_const, class_name) if @model_class.const_defined?(class_name)
