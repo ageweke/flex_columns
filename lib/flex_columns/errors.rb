@@ -31,6 +31,24 @@ defined on that flex column; the defined fields are:
       end
     end
 
+    class ConflictingJsonStorageNameError < FieldError
+      attr_reader :model_class, :column_name, :new_field_name, :existing_field_name, :json_storage_name
+
+      def initialize(model_class, column_name, new_field_name, existing_field_name, json_storage_name)
+        @model_class = model_class
+        @column_name = column_name
+        @new_field_name = new_field_name
+        @existing_field_name = existing_field_name
+        @json_storage_name = json_storage_name
+
+        super(%{On class #{model_class.name}, flex column #{column_name.inspect}, you're trying to define a field,
+#{new_field_name.inspect}, that has a JSON storage name of #{json_storage_name.inspect},
+but there's already another field, #{existing_field_name.inspect}, that uses that same JSON storage name.
+
+These fields would conflict in the JSON store, and thus this is not allowed.})
+      end
+    end
+
     class DefinitionError < Base; end
     class NoSuchColumnError < DefinitionError; end
     class InvalidColumnTypeError < DefinitionError; end

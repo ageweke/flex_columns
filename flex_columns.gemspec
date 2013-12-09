@@ -9,8 +9,8 @@ Gem::Specification.new do |s|
   s.authors       = ["Andrew Geweke"]
   s.email         = ["andrew@geweke.org"]
   s.homepage      = "https://github.com/ageweke/flex_columns"
-  s.description   = %q{Provides flexible, schemaless columns in a RDBMS by using JSON serialization.}
-  s.summary       = %q{Provides flexible, schemaless columns in a RDBMS by using JSON serialization.}
+  s.description   = %q{Schema-free, structured JSON storage inside a RDBMS.}
+  s.summary       = %q{Schema-free, structured JSON storage inside a RDBMS.}
   s.license       = "MIT"
 
   s.files         = `git ls-files`.split($/)

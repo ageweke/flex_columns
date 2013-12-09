@@ -17,7 +17,43 @@ module FlexColumns
         name = FlexColumns::FieldDefinition.normalize_name(name)
 
         @fields ||= { }
-        @fields[name] = FlexColumns::FieldDefinition.new(self, name, args, options)
+        @fields_by_json_storage_names ||= { }
+
+        field = FlexColumns::FieldDefinition.new(self, name, args, options)
+        same_json_storage_name_field = @fields_by_json_storage_names[field.json_storage_name]
+        if same_json_storage_name_field && same_json_storage_name_field.field_name != field.field_name
+          raise FlexColumns::Errors::ConflictingJsonStorageNameError.new(model_class, column_name, name, same_json_storage_name_field.field_name, field.json_storage_name)
+        end
+
+        @fields[name] = field
+        @fields_by_json_storage_names[field.json_storage_name] = field
+      end
+
+      def field_hash_to_json_hash(field_hash)
+        out = { }
+        field_hash.each do |field_name, field_value|
+          field = @fields[FlexColumns::FieldDefinition.normalize_name(field_name)]
+          unless field
+            raise "We got a field set that we don't know about; this should never happen: #{field_name.inspect}"
+          end
+
+          out[field.json_storage_name] = field_value
+        end
+        out
+      end
+
+      def json_hash_to_field_hash(json_hash)
+        out = { }
+        json_hash.each do |json_name, field_value|
+          field = @fields_by_json_storage_names[json_name]
+          if field
+            out[field.field_name] = field_value
+          else
+            # unknown fields
+            out[json_name] = field_value
+          end
+        end
+        out
       end
 
       def is_flex_column_class?
@@ -48,6 +84,10 @@ module FlexColumns
 
       def all_field_names
         @fields.keys.sort_by { |x| x.to_s }
+      end
+
+      def all_json_storage_names
+        @fields.values.map(&:json_storage_name).sort_by(&:to_s)
       end
 
       def object_for(model_instance)
@@ -336,7 +376,7 @@ not #{input.inspect} (#{input.object_id}).}
             delete_unknown_fields_from!(parsed)
           end
 
-          @field_contents = parsed
+          @field_contents = self.class.json_hash_to_field_hash(parsed)
         else
           @field_contents = { }
         end
@@ -387,12 +427,12 @@ not #{input.inspect} (#{input.object_id}).}
     def to_json
       deserialize_if_necessary!
 
-      as_string = field_contents.to_json
+      as_string = self.class.field_hash_to_json_hash(field_contents).to_json
       if column.limit && as_string.length > column.limit
         raise FlexColumns::Errors::JsonTooLongError.new(model_instance, column_name, column.limit, as_string)
       end
 
-      field_contents.to_json
+      as_string
     end
 
     private
@@ -407,7 +447,7 @@ not #{input.inspect} (#{input.object_id}).}
     end
 
     def delete_unknown_fields_from!(hash)
-      extra = (hash.keys - self.class.all_field_names)
+      extra = (hash.keys - self.class.all_json_storage_names)
       extra.each { |e| hash.delete(e) }
     end
 

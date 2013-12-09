@@ -29,6 +29,10 @@ module FlexColumns
       apply_validations!
     end
 
+    def json_storage_name
+      (options[:json] || field_name).to_s.strip.downcase.to_sym
+    end
+
     def add_methods_to_flex_column_class!(dynamic_methods_module)
       fn = field_name
 
@@ -114,13 +118,18 @@ they're being included from.}
     attr_reader :flex_column_class, :options
 
     def validate_options(options)
-      options.assert_valid_keys(:visibility, :null, :enum, :limit)
+      options.assert_valid_keys(:visibility, :null, :enum, :limit, :json)
 
       case options[:visibility]
       when nil then nil
       when :public then nil
       when :private then nil
       else raise ArgumentError, "Invalid value for :visibility: #{options[:visibility].inspect}"
+      end
+
+      case options[:json]
+      when nil, String, Symbol then nil
+      else raise ArgumentError, "Invalid value for :json: #{options[:json].inspect}"
       end
 
       unless [ nil, true, false ].include?(options[:null])

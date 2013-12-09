@@ -1,6 +1,14 @@
 # flex_columns
 
-`flex_columns` gives you the flexibility of schema-free columns on top of a proven relational database. It adds
-additional niceties on top of a simple JSON-based serialization mechanism, attempting to walk a nice line between
-being completely free (and letting you clutter up your database with garbage) and being so restrictive that you
-might as well just add columns to your schema in the first place.
+Schema-free, structured storage inside a RDBMS. Use a `VARCHAR`, `TEXT`, `CLOB`, `BLOB`, or `BINARY` column in your
+schema to store structured data in JSON, while still letting you run validations against that data, build methods on
+top of it, and automatically delegate it to your models. Far more powerful than ActiveRecord's built-in serialization
+mechanism, `flex_columns` gives you the freedom of schemaless databases inside a proven RDBMS.
+
+### Example
+
+As an example &mdash; assume table `users` has a `CLOB` column `user_attributes`:
+
+    class User < ActiveRecord::Base
+      flex_column :user_attributes do
+        field :
