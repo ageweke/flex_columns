@@ -24,8 +24,84 @@ describe "FlexColumns bulk operations" do
     end
   end
 
-  it "should return #to_stored_data correctly"
-  it "should return #to_json correctly"
+  it "should return #to_stored_data correctly on a text column, and return the exact same thing for #to_json" do
+    user = ::User.new
+    user.name = "User 1"
+    user.aaa = "aaa#{rand(1_000_000)}"
+    user.bbb = rand(1_000_000)
+
+    json = user.user_attributes.to_stored_data
+    json.class.should be(String)
+
+    parsed = JSON.parse(json)
+    parsed.keys.sort.should == %w{aaa bbb}.sort
+    parsed['aaa'].should == user.aaa
+
+    user.user_attributes.to_json.should == json
+  end
+
+  context "with a binary column" do
+    before :each do
+      migrate do
+        drop_table :flexcols_spec_users rescue nil
+        create_table :flexcols_spec_users do |t|
+          t.string :name, :null => false
+          t.binary :user_attributes
+        end
+      end
+
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes do
+          field :aaa, :string
+          field :bbb, :integer
+        end
+      end
+    end
+
+    it "should return #to_stored_data correctly on a binary column, uncompressed, but return JSON separately with #to_json" do
+      user = ::User.new
+      user.name = "User 1"
+      user.aaa = "aaa#{rand(1_000_000)}"
+      user.bbb = rand(1_000_000)
+
+      stored_data = user.user_attributes.to_stored_data
+      stored_data.class.should be(String)
+      stored_data.should match(/^01,0,/)
+
+      stored_data =~ /^01,0,(.*)$/i
+      json = $1
+      parsed = JSON.parse(json)
+      parsed.keys.sort.should == %w{aaa bbb}.sort
+      parsed['aaa'].should == user.aaa
+
+      user.user_attributes.to_json.should == json
+    end
+
+    it "should return #to_stored_data correctly on a binary column, compressed, but return JSON separately with #to_json" do
+      user = ::User.new
+      user.name = "User 1"
+      user.aaa = "aaa#{rand(1_000_000)}" * 1_000
+      user.bbb = rand(1_000_000)
+
+      stored_data = user.user_attributes.to_stored_data
+      stored_data.class.should be(String)
+      stored_data.should match(/^01,1,(.*)/)
+
+      stored_data =~ /^01,1,(.*)$/i
+      compressed = $1
+
+      require 'stringio'
+      stream = StringIO.new(compressed, "r")
+      reader = Zlib::GzipReader.new(stream)
+      json = reader.read
+
+      parsed = JSON.parse(json)
+      parsed.keys.sort.should == %w{aaa bbb}.sort
+      parsed['aaa'].should == user.aaa
+
+      user.user_attributes.to_json.should == json
+    end
+  end
 
   it "should be able to instantiate fields without an ActiveRecord model, and then serialize them again" do
     users = [ ]
