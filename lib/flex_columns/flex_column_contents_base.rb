@@ -6,7 +6,7 @@ require 'flex_columns/field_set'
 require 'flex_columns/flex_column_contents_class'
 
 module FlexColumns
-  class FlexColumnBase
+  class FlexColumnContentsBase
     include ActiveModel::Validations
 
     extend FlexColumns::FlexColumnContentsClass

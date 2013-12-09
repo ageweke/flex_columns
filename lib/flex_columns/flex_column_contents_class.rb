@@ -99,7 +99,7 @@ That column is of type: #{column.type.inspect}.}
       @options = options
       @field_set = FlexColumns::FieldSet.new(self)
 
-      class_name = "FlexColumn#{column_name.to_s.camelize}".to_sym
+      class_name = "#{column_name.to_s.camelize}FlexContents".to_sym
       @model_class.send(:remove_const, class_name) if @model_class.const_defined?(class_name)
       @model_class.const_set(class_name, self)
 

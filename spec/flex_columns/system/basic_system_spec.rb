@@ -94,7 +94,7 @@ describe "FlexColumns basic operations" do
       class_name = ::User.new.user_attributes.class.name
       class_name.should match(/^user::/i)
       class_name.should match(/userattributes/i)
-      class_name.should match(/flexcolumn/i)
+      class_name.should match(/flexcontents/i)
     end
 
     it "should let you make flex-column accessors private one-by-one" do
