@@ -11,10 +11,13 @@ describe FlexColumns::Contents::ColumnData do
 
     @field_foo = double("field_foo")
     allow(@field_foo).to receive(:field_name).and_return(:foo)
+    allow(@field_foo).to receive(:json_storage_name).and_return(:foo)
     @field_bar = double("field_bar")
     allow(@field_bar).to receive(:field_name).and_return(:bar)
+    allow(@field_bar).to receive(:json_storage_name).and_return(:bar)
     @field_baz = double("field_baz")
     allow(@field_baz).to receive(:field_name).and_return(:baz)
+    allow(@field_baz).to receive(:json_storage_name).and_return(:baz)
 
     allow(@field_set).to receive(:field_named) do |x|
       case x.to_sym
@@ -82,11 +85,25 @@ describe FlexColumns::Contents::ColumnData do
       end
 
       it "should return data from a valid field correctly" do
-        field = double("field")
-        allow(field).to receive(:field_name).and_return(:foo)
-        expect(@field_set).to receive(:field_named).with(:foo).and_return(field)
-
         @instance[:foo].should == 'bar'
+      end
+    end
+
+    describe "[]=" do
+      it "should reject invalid field names" do
+        expect(@field_set).to receive(:field_named).with(:quux).and_return(nil)
+
+        e = capture_exception(FlexColumns::Errors::NoSuchFieldError) { @instance[:quux] = "a" }
+      end
+
+      it "should assign data to a valid field correctly" do
+        @instance[:foo] = "abc"
+        @instance[:foo].should == "abc"
+      end
+
+      it "should transform Symbols to Strings" do
+        @instance[:foo] = :abc
+        @instance[:foo].should == "abc"
       end
     end
 
@@ -210,6 +227,59 @@ describe FlexColumns::Contents::ColumnData do
         e.raw_string.should == bad_string.strip
         e.source_exception.class.should == Zlib::GzipFile::Error
         e.message.should match(/describedescribe/)
+      end
+    end
+
+    describe "notifications" do
+      before :each do
+        @deserializations = [ ]
+        ds = @deserializations
+
+        ActiveSupport::Notifications.subscribe('flex_columns.deserialize') do |name, start, finish, id, payload|
+          ds << payload
+        end
+
+        @serializations = [ ]
+        s = @serializations
+
+        ActiveSupport::Notifications.subscribe('flex_columns.serialize') do |name, start, finish, id, payload|
+          s << payload
+        end
+      end
+
+      it "should trigger a notification on deserialization" do
+        @deserializations.length.should == 0
+
+        @instance[:foo].should == 'bar'
+        @deserializations.length.should == 1
+        @deserializations[0].should == { :notif1 => :a, :notif2 => :b, :raw_data => @json_string.strip }
+      end
+
+      it "should trigger a notification on serialization" do
+        @serializations.length.should == 0
+
+        @instance[:foo].should == 'bar'
+        @serializations.length.should == 0
+
+        @instance.to_stored_data
+
+        @serializations.length.should == 1
+        @serializations[0].should == { :notif1 => :a, :notif2 => :b }
+      end
+
+      it "should not trigger a notification on #to_json" do
+        @serializations.length.should == 0
+
+        @instance[:foo].should == 'bar'
+        @serializations.length.should == 0
+
+        @instance.to_json
+
+        @serializations.length.should == 0
+      end
+
+      it "should not deserialize until data is required" do
+        @deserializations.length.should == 0
       end
     end
 
