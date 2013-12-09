@@ -1,6 +1,6 @@
 require 'active_model'
 require 'flex_columns/errors'
-require 'flex_columns/dynamic_methods_module'
+require 'flex_columns/util/dynamic_methods_module'
 require 'flex_columns/contents/column_data'
 require 'flex_columns/definition/field_set'
 require 'flex_columns/contents/flex_column_contents_class'

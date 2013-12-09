@@ -111,7 +111,7 @@ module FlexColumns
       end
 
       def sync_methods!
-        @dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
+        @dynamic_methods_module ||= FlexColumns::Util::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
         @dynamic_methods_module.remove_all_methods!
 
         field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module)

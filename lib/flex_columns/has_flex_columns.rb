@@ -69,7 +69,7 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
       end
 
       def _flex_column_dynamic_methods_module
-        @_flex_column_dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexColumnsDynamicMethods)
+        @_flex_column_dynamic_methods_module ||= FlexColumns::Util::DynamicMethodsModule.new(self, :FlexColumnsDynamicMethods)
       end
 
       def flex_column(flex_column_name, options = { }, &block)

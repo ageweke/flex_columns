@@ -6,7 +6,7 @@ module FlexColumns
 
     module ClassMethods
       def _flex_columns_include_flex_columns_dynamic_methods_module
-        @_flex_columns_include_flex_columns_dynamic_methods_module ||= FlexColumns::DynamicMethodsModule.new(self, :FlexColumnsIncludedColumnsMethods)
+        @_flex_columns_include_flex_columns_dynamic_methods_module ||= FlexColumns::Util::DynamicMethodsModule.new(self, :FlexColumnsIncludedColumnsMethods)
       end
 
       def include_flex_columns_from(*args, &block)
