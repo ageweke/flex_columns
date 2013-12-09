@@ -107,6 +107,31 @@ describe FlexColumns::Contents::ColumnData do
       end
     end
 
+    it "should return keys for #keys" do
+      @instance.keys.sort_by(&:to_s).should == [ :foo, :bar, :baz ].sort_by(&:to_s)
+    end
+
+    it "should deserialize, if needed, on check!" do
+      instance = new_with_string("---unparseable JSON---")
+
+      lambda { instance.check! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
+    end
+
+    it "should tell you if it's deserialized or not with #touched?" do
+      @instance.touched?.should_not be
+      @instance[:foo]
+      @instance.touched?.should be
+    end
+
+    it "should return JSON data with #to_json" do
+      json = @instance.to_json
+      parsed = JSON.parse(json)
+      parsed.keys.sort.should == %w{foo bar baz}.sort
+      parsed['foo'].should == 'bar'
+      parsed['bar'].should == 123
+      parsed['baz'].should == 'quux'
+    end
+
     describe "deserialization" do
       it "should raise an error if encoding is wrong" do
         bad_encoding = double("bad_encoding")
