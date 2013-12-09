@@ -50,6 +50,8 @@ describe "FlexColumns bulk operations" do
         end
       end
 
+      ::User.reset_column_information
+
       define_model_class(:User, 'flexcols_spec_users') do
         flex_column :user_attributes do
           field :aaa, :string

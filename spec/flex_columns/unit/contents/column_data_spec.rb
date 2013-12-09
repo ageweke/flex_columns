@@ -189,7 +189,9 @@ describe FlexColumns::Contents::ColumnData do
 
         header = "FC:01,1,"
         header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
-        instance = new_with_string(header + stream.string)
+        total = header + stream.string
+        total.force_encoding("BINARY") if total.respond_to?(:force_encoding)
+        instance = new_with_string(total)
         instance[:foo].should == "bar"
         instance[:bar].should == 123
         instance[:baz].should == "quux"
@@ -217,6 +219,7 @@ describe FlexColumns::Contents::ColumnData do
         header = "FC:01,2,"
         header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
         bad_string = header + stream.string
+        bad_string.force_encoding("BINARY") if bad_string.respond_to?(:force_encoding)
 
         instance = new_with_string(bad_string)
         e = capture_exception(FlexColumns::Errors::InvalidDataInDatabaseError) { instance[:foo] }
@@ -245,6 +248,7 @@ describe FlexColumns::Contents::ColumnData do
         header = "FC:01,1,"
         header.force_encoding("BINARY") if header.respond_to?(:force_encoding)
         bad_string = header + compressed_data
+        bad_string.force_encoding("BINARY") if bad_string.respond_to?(:force_encoding)
 
         instance = new_with_string(bad_string)
         e = capture_exception(FlexColumns::Errors::InvalidCompressedDataInDatabaseError) { instance[:foo] }
