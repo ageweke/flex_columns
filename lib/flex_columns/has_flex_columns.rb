@@ -20,10 +20,7 @@ module FlexColumns
 
     def _flex_columns_before_validation!
       self.class._all_flex_column_names.each do |column_name|
-        flex_class = self.class._flex_column_class_for(column_name)
-        if flex_class.has_any_validations?
-          _flex_column_object_for(column_name).before_validation!
-        end
+        _flex_column_object_for(column_name).before_validation!
       end
     end
 
