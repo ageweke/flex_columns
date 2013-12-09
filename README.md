@@ -34,6 +34,7 @@ You can now write code like:
 
 As a snapshot of all possibilities:
 
+    # Assume we're storing the JSON in a wholly separate table, so we don't have to load it unless we need it...
     class UserDetails < ActiveRecord::Base
       flex_column :user_attributes,
         :compress => 100,        # try compressing any JSON >= 100 bytes, but only store compressed if it's smaller
@@ -70,8 +71,12 @@ As a snapshot of all possibilities:
       end
     end
 
+    # And now transparently include it into our User class...
     class User < ActiveRecord::Base
+      has_one :user_details
 
+      include_flex_columns_from :user_details
+    end
 
 ...and then you can write code like so:
 
@@ -87,6 +92,12 @@ As a snapshot of all possibilities:
 
 There's lots more, too:
 
+* Complete validations support: the flex-column object includes ActiveModel::Validations, so every single Rails validation (or custom validations) will work perfectly
 * Bulk operations, for avoiding ActiveRecord instantiation (efficiently operate using raw +select_all+ and +activerecord-import+ or similar systems)
 * Transparently compresses JSON data in the column using GZip, if it's typed as binary (`BINARY`, `VARBINARY`, `CLOB`, etc.); you can fully control this, or turn it off if you want
-*
+* Happily allows definition and redefinition of flex columns at any time, for full dynamism and compatibility with development mode of Rails
+* Rich error hierarchy and detailed exception messages &mdash; you will know exactly what went wrong when something goes wrong
+* Include flex columns across associations, with control over exactly what's delegated and visibility of those methods (public or private)
+* Control whether attribute methods generated are public (default) or private (to encourage encapsulation)
+* "Types": automatically adds validations that require fields to comply with database types like +:integer+, +:string+, +:timestamp+, etc.
+* Decide whether to preserve (the default) or delete keys from the underlying JSON that aren't defined in the flex column &mdash; lets you ensure database data is of the highest quality, or be compatible with any other storage mechanisms
