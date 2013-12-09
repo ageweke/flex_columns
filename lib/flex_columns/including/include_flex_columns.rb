@@ -14,7 +14,7 @@ module FlexColumns
           options = args.pop if args[-1] && args[-1].kind_of?(Hash)
           options ||= { }
 
-          options.assert_valid_keys(:prefix, :visibility)
+          options.assert_valid_keys(:prefix, :visibility, :delegate)
 
           case options[:prefix]
           when nil, String, Symbol then nil
@@ -23,6 +23,10 @@ module FlexColumns
 
           unless [ :public, :private, nil ].include?(options[:visibility])
             raise ArgumentError, "Invalid value for :visibility: #{options[:visibility].inspect}"
+          end
+
+          unless [ true, false, nil ].include?(options[:delegate])
+            raise ArgumentError, "Invalid value for :delegate: #{options[:delegate].inspect}"
           end
 
           association_names = args

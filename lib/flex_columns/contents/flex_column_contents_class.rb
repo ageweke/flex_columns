@@ -39,7 +39,20 @@ module FlexColumns
       end
 
       def include_fields_into(dynamic_methods_module, association_name, options)
-        field_set.include_fields_into(dynamic_methods_module, association_name, options)
+        cn = column_name
+        mn = column_name
+        mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
+
+        dynamic_methods_module.define_method(mn) do
+          associated_object = send(association_name) || send("build_#{association_name}")
+          associated_object.send(cn)
+        end
+        dynamic_methods_module.private(mn) if options[:visibility] == :private
+
+        unless options.has_key?(:delegate) && (! options[:delegate])
+          add_custom_methods!(dynamic_methods_module, options)
+          field_set.include_fields_into(dynamic_methods_module, association_name, options)
+        end
       end
 
       def object_for(model_instance)
@@ -115,7 +128,11 @@ module FlexColumns
         @dynamic_methods_module.remove_all_methods!
 
         field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module)
-        add_custom_methods_to_model_class!(model_class._flex_column_dynamic_methods_module)
+
+        if delegation_type
+          add_custom_methods!(model_class._flex_column_dynamic_methods_module,
+            :visibility => (delegation_type == :private ? :private : :public))
+        end
       end
 
       attr_reader :model_class
@@ -123,18 +140,22 @@ module FlexColumns
       private
       attr_reader :fields, :options, :custom_methods, :field_set, :column
 
-      def add_custom_methods_to_model_class!(dynamic_methods_module)
-        return if (! delegation_type)
-
+      def add_custom_methods!(dynamic_methods_module, options = { })
         cn = column_name
 
         custom_methods.each do |custom_method|
-          dynamic_methods_module.define_method(custom_method) do |*args, &block|
-            flex_object = send(cn)
+          mn = custom_method
+          mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
+
+          flex_object_method_name = cn
+          flex_object_method_name = "#{options[:prefix]}_#{flex_object_method_name}" if options[:prefix]
+
+          dynamic_methods_module.define_method(mn) do |*args, &block|
+            flex_object = send(flex_object_method_name)
             flex_object.send(custom_method, *args, &block)
           end
 
-          dynamic_methods_module.private(custom_method) if delegation_type == :private
+          dynamic_methods_module.private(custom_method) if options[:visibility] == :private
         end
       end
 
