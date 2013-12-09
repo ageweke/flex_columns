@@ -6,21 +6,17 @@ module FlexColumns
   module Contents
     class ColumnData
       def initialize(field_set, options = { })
-        options.assert_valid_keys(:json_string, :field_set, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length)
+        options.assert_valid_keys(:json_string, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length)
 
         @json_string = options[:json_string]
-        @field_set = options[:field_set]
+        @field_set = field_set
         @data_source = options[:data_source]
         @unknown_fields = options[:unknown_fields]
         @length_limit = options[:length_limit]
         @storage = options[:storage]
         @compress_if_over_length = options[:compress_if_over_length]
 
-        case json_string
-        when nil, String then nil
-        else raise ArgumentError, "Invalid JSON string: #{json_string.inspect}"
-        end
-
+        raise ArgumentError, "Invalid JSON string: #{json_string.inspect}" if json_string && (! json_string.kind_of?(String))
         raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::Definition::FieldSet)
         raise ArgumentError, "Must supply a data source, not: #{data_source.inspect}" unless data_source
         raise ArgumentError, "Invalid value for :unknown_fields: #{unknown_fields.inspect}" unless [ :preserve, :delete ].include?(unknown_fields)
@@ -125,22 +121,20 @@ module FlexColumns
 
       def to_binary_storage(json_string)
         json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-        result = "%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
+        header = "FC:%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
 
-        compressed = compress(json_string) if compress_if_over_length && json_string.length > compress_if_over_length
-
-        if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
-          result += "1,"
-          result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-
-          result += compressed
-        else
-          result += "0,"
-          result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-          result += json_string
+        if compress_if_over_length && json_string.length > compress_if_over_length
+          compressed = compress(json_string)
+          compressed.force_encoding("BINARY") if compressed.respond_to?(:force_encoding)
+          compressed = header + "1," + compressed
+          compressed.force_encoding("BINARY") if compressed.respond_to?(:force_encoding)
         end
 
-        result
+        if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
+          compressed
+        else
+          header + "0," + json_string
+        end
       end
 
       def compress(json_string)
@@ -159,7 +153,7 @@ module FlexColumns
       end
 
       def from_storage(storage_string)
-        if storage_string =~ /^((\d+),(\d+),)/i
+        if storage_string =~ /^(FC:(\d+),(\d+),)/i
           prefix = $1
           version_number = Integer($2)
           compressed = Integer($3)

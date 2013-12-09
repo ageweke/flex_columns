@@ -66,9 +66,9 @@ describe "FlexColumns bulk operations" do
 
       stored_data = user.user_attributes.to_stored_data
       stored_data.class.should be(String)
-      stored_data.should match(/^01,0,/)
+      stored_data.should match(/^FC:01,0,/)
 
-      stored_data =~ /^01,0,(.*)$/i
+      stored_data =~ /^FC:01,0,(.*)$/i
       json = $1
       parsed = JSON.parse(json)
       parsed.keys.sort.should == %w{aaa bbb}.sort
@@ -85,9 +85,9 @@ describe "FlexColumns bulk operations" do
 
       stored_data = user.user_attributes.to_stored_data
       stored_data.class.should be(String)
-      stored_data.should match(/^01,1,(.*)/)
+      stored_data.should match(/^FC:01,1,(.*)/)
 
-      stored_data =~ /^01,1,(.*)$/i
+      stored_data =~ /^FC:01,1,(.*)$/i
       compressed = $1
 
       require 'stringio'

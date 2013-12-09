@@ -140,7 +140,7 @@ describe "FlexColumns compression operations" do
 
     user_bd = ::UserBackdoor.find(user.id)
     data = user_bd.user_attributes
-    data.should match(/^01,0,\{/i)
+    data.should match(/^FC:01,0,\{/i)
   end
 
   it "should not compress data under a certain limit, if asked to" do

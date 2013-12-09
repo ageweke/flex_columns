@@ -9,8 +9,7 @@ module FlexColumns
           :data_source    => data_source,
           :unknown_fields => options[:unknown_fields] || :preserve,
           :length_limit   => column.limit,
-          :storage        => column.type == :binary ? :binary : :text,
-          :field_set      => field_set
+          :storage        => column.type == :binary ? :binary : :text
         }
 
         if (! options.has_key?(:compress))
