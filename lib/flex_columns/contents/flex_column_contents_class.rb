@@ -19,7 +19,7 @@ module FlexColumns
           create_options[:compress_if_over_length] = options[:compress]
         end
 
-        FlexColumns::ColumnData.new(field_set, create_options)
+        FlexColumns::Contents::ColumnData.new(field_set, create_options)
       end
 
       def field(name, *args)
