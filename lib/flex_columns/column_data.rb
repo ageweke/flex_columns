@@ -80,48 +80,24 @@ module FlexColumns
       end
 
       as_string = storage_hash.to_json
-
-      if length_limit && as_string.length > length_limit
-        raise FlexColumns::Errors::JsonTooLongError.new(data_source, length_limit, as_string)
-      end
+      as_string = as_string.encode(Encoding::UTF_8) if as_string.respond_to?(:encode)
 
       as_string
     end
 
     def to_stored_data
+      out = nil
+
       instrument("serialize") do
-        json_string = to_json
-
-        if storage == :binary
-          json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-          result = "%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
-
-          compressed = nil
-          if compress_if_over_length && json_string.length > compress_if_over_length
-            output = StringIO.new("w")
-            writer = Zlib::GzipWriter.new(output)
-            writer.write(json_string)
-            writer.close
-
-            compressed = output.string
-          end
-
-          if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
-            result += "1,"
-            result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-
-            result += compressed
-          else
-            result += "0,"
-            result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
-            result += json_string
-          end
-
-          result
-        else
-          json_string
-        end
+        out = to_json
+        out = to_binary_storage(out) if storage == :binary
       end
+
+      if length_limit && out.length > length_limit
+        raise FlexColumns::Errors::JsonTooLongError.new(data_source, length_limit, out)
+      end
+
+      out
     end
 
     private
@@ -146,6 +122,92 @@ module FlexColumns
       field.field_name
     end
 
+    def to_binary_storage(json_string)
+      json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+      result = "%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
+
+      compressed = compress(json_string) if compress_if_over_length && json_string.length > compress_if_over_length
+
+      if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
+        result += "1,"
+        result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+
+        result += compressed
+      else
+        result += "0,"
+        result.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+        result += json_string
+      end
+
+      result
+    end
+
+    def compress(json_string)
+      stream = StringIO.new("w")
+      writer = Zlib::GzipWriter.new(stream)
+      writer.write(json_string)
+      writer.close
+
+      stream.string
+    end
+
+    def decompress(data)
+      input = StringIO.new(data, "r")
+      reader = Zlib::GzipReader.new(input)
+      reader.read
+    end
+
+    def from_storage(storage_string)
+      if storage_string =~ /^((\d+),(\d+),)/i
+        prefix = $1
+        version_number = Integer($2)
+        compressed = Integer($3)
+        remaining_data = storage_string[prefix.length..-1]
+
+        if version_number > FLEX_COLUMN_CURRENT_VERSION_NUMBER
+          raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError(
+            data_source, storage_string, version_number, FLEX_COLUMN_CURRENT_VERSION_NUMBER)
+        end
+
+        case compressed
+        when 0 then remaining_data
+        when 1 then decompress(remaining_data)
+        else raise FlexColumns::Errors::InvalidDataInDatabaseError(
+          data_source, raw_data, "the compression number was #{compressed.inspect}, not 0 or 1.")
+        end
+      else
+        storage_string
+      end
+    end
+
+    def parse_json(json)
+      out = begin
+        JSON.parse(json)
+      rescue ::JSON::ParserError => pe
+        raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(data_source, json, pe)
+      end
+
+      unless out.kind_of?(Hash)
+        raise FlexColumns::Errors::InvalidJsonInDatabaseError.new(data_source, json, out)
+      end
+
+      out
+    end
+
+    def store_fields!(parsed_hash)
+      @field_contents_by_field_name = { }
+      @unknown_field_contents_by_key = { }
+
+      parsed_hash.each do |field_name, field_value|
+        field = field_set.field_with_json_storage_name(field_name)
+        if field
+          @field_contents_by_field_name[field.field_name] = field_value
+        else
+          @unknown_field_contents_by_key[field_name] = field_value
+        end
+      end
+    end
+
     def deserialize_if_necessary!
       unless field_contents_by_field_name
         raw_data = json_string || ''
@@ -157,53 +219,11 @@ module FlexColumns
         raw_data = raw_data.strip
 
         if raw_data.length > 0
-          parsed = nil
-
-          instrument("deserialize", :raw_data => raw_data) do
-            if raw_data =~ /^((\d+),(\d+),)/i
-              prefix = $1
-              version_number = Integer($2)
-              compressed = Integer($3)
-              remaining_data = raw_data[prefix.length..-1]
-
-              if version_number > FLEX_COLUMN_CURRENT_VERSION_NUMBER
-                raise FlexColumns::Errors::InvalidFlexColumnsVersionNumberInDatabaseError(
-                  data_source, raw_data, version_number, FLEX_COLUMN_CURRENT_VERSION_NUMBER)
-              end
-
-              case compressed
-              when 0 then raw_data = remaining_data
-              when 1 then
-                input = StringIO.new(remaining_data)
-                reader = Zlib::GzipReader.new(input)
-                raw_data = reader.read
-              else raise FlexColumns::Errors::InvalidDataInDatabaseError(
-                data_source, raw_data, "the compression number was #{compressed.inspect}, not 0 or 1.")
-              end
-            end
-
-            begin
-              parsed = JSON.parse(raw_data)
-            rescue ::JSON::ParserError => pe
-              raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(data_source, raw_data, pe)
-            end
-
-            unless parsed.kind_of?(Hash)
-              raise FlexColumns::Errors::InvalidJsonInDatabaseError.new(data_source, raw_data, parsed)
-            end
+          parsed = instrument("deserialize", :raw_data => raw_data) do
+            parse_json(from_storage(raw_data))
           end
 
-          @field_contents_by_field_name = { }
-          @unknown_field_contents_by_key = { }
-
-          parsed.each do |field_name, field_value|
-            field = field_set.field_with_json_storage_name(field_name)
-            if field
-              @field_contents_by_field_name[field.field_name] = field_value
-            else
-              @unknown_field_contents_by_key[field_name] = field_value
-            end
-          end
+          store_fields!(parsed)
         else
           @field_contents_by_field_name = { }
           @unknown_field_contents_by_key = { }

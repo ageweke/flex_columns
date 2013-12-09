@@ -93,8 +93,7 @@ describe "FlexColumns error handling" do
       e.message.should match(/abc.*def/i)
       e.message.should match(/JSON::ParserError/i)
 
-      e.model_instance.should be(user2)
-      e.column_name.should == :user_attributes
+      e.data_source.should be(user2.user_attributes)
       e.raw_string.should match(/abc.*def/i)
     end
   end
