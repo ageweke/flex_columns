@@ -87,10 +87,9 @@ describe "FlexColumns bulk operations" do
 
       stored_data = user.user_attributes.to_stored_data
       stored_data.class.should be(String)
-      stored_data.should match(/^FC:01,1,(.*)/)
+      stored_data.should match(/^FC:01,1,/)
 
-      stored_data =~ /^FC:01,1,(.*)$/i
-      compressed = $1
+      compressed = stored_data[8..-1]
 
       require 'stringio'
       stream = StringIO.new(compressed, "r")
