@@ -77,7 +77,7 @@ module FlexColumns
                 :encoding => 'utf8'
               }
             }
-          when 'postgresql'
+          when 'postgres', 'postgresql'
             {
               :require => 'activerecord-jdbcpostgresql-adapter',
               :database_gem_name => 'activerecord-jdbcpostgresql-adapter',
