@@ -5,6 +5,19 @@ schema to store structured data in JSON, while still letting you run validations
 top of it, and automatically delegate it to your models. Far more powerful than ActiveRecord's built-in serialization
 mechanism, `flex_columns` gives you the freedom of schemaless databases inside a proven RDBMS.
 
+Supported platforms:
+
+* Ruby 1.8.7, 1.9.3, 2.0.0, and JRuby 1.7.6.
+* ActiveRecord 3.0.20, 3.1.12, 3.2.15, and 4.0.1. (Should be compatible with future versions, as well...just sits on top of the public API of ActiveRecord.)
+* Tested against MySQL, PostgreSQL, and SQLite 3. (Should be compatible with all RDBMSes supported by ActiveRecord.)
+
+Current build status: ![Current Build Status](https://api.travis-ci.org/ageweke/flex_columns.png?branch=master)
+
+### Installing flex_columns
+
+    # Gemfile
+    gem 'flex_columns'
+
 ### Example
 
 As an example &mdash; assume table `users` has a `CLOB` column `user_attributes`:
@@ -101,3 +114,7 @@ There's lots more, too:
 * Control whether attribute methods generated are public (default) or private (to encourage encapsulation)
 * "Types": automatically adds validations that require fields to comply with database types like +:integer+, +:string+, +:timestamp+, etc.
 * Decide whether to preserve (the default) or delete keys from the underlying JSON that aren't defined in the flex column &mdash; lets you ensure database data is of the highest quality, or be compatible with any other storage mechanisms
+
+### Documentation
+
+# Documentation is on [the Wiki](https://github.com/ageweke/flex_columns/wiki)!
