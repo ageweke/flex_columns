@@ -22,7 +22,7 @@ module FlexColumns
         case database_gem_name
         when /mysql/i then :mysql
         when /sqlite/i then :sqlite
-        when /pg/i then :postgres
+        when /pg/i, /postgres/i then :postgres
         else raise "Unknown database type for Gem name: #{database_gem_name.inspect}"
         end
       end
