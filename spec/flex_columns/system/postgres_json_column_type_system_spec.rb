@@ -13,13 +13,22 @@ describe "FlexColumns PostgreSQL JSON column type support" do
 
   if dbtype == :postgres
     before :each do
+      create_table_error = nil
+
       migrate do
         drop_table :flexcols_spec_users rescue nil
-        create_table :flexcols_spec_users do |t|
-          t.string :name, :null => false
-          t.column :user_attributes, :json
+
+        begin
+          create_table :flexcols_spec_users do |t|
+            t.string :name, :null => false
+            t.column :user_attributes, :json
+          end
+        rescue ActiveRecord::StatementInvalid => si
+          create_table_error = si
         end
       end
+
+      @create_table_error = create_table_error
     end
 
     after :each do
@@ -29,26 +38,30 @@ describe "FlexColumns PostgreSQL JSON column type support" do
     end
 
     it "should store JSON, without a binary header or compression, in a column typed of JSON" do
-      define_model_class(:User, 'flexcols_spec_users') do
-        flex_column :user_attributes do
-          field :wants_email
+      if @create_table_error
+        $stderr.puts "Skipping PostgreSQL test of JSON type, because PostgreSQL didn't seem to create our table successfully -- likely because its version is < 9.2, and thus has no support for the JSON type: #{@create_table_error.message} (#{@create_table_error.class.name})"
+      else
+        define_model_class(:User, 'flexcols_spec_users') do
+          flex_column :user_attributes do
+            field :wants_email
+          end
         end
+
+        define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
+
+        user = ::User.new
+        user.name = 'User 1'
+        user.wants_email = 'foo' * 10_000
+        user.save!
+
+        user_bd = ::UserBackdoor.find(user.id)
+        string = user_bd.user_attributes
+        string.length.should > 30_000
+        string.should match(/^\s*\{/i)
+        parsed = JSON.parse(string)
+        parsed['wants_email'].should == "foo" * 10_000
+        parsed.keys.should == [ 'wants_email' ]
       end
-
-      define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
-
-      user = ::User.new
-      user.name = 'User 1'
-      user.wants_email = 'foo' * 10_000
-      user.save!
-
-      user_bd = ::UserBackdoor.find(user.id)
-      string = user_bd.user_attributes
-      string.length.should > 30_000
-      string.should match(/^\s*\{/i)
-      parsed = JSON.parse(string)
-      parsed['wants_email'].should == "foo" * 10_000
-      parsed.keys.should == [ 'wants_email' ]
     end
   end
 end
