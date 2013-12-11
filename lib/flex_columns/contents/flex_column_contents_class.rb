@@ -129,7 +129,7 @@ module FlexColumns
         @dynamic_methods_module ||= FlexColumns::Util::DynamicMethodsModule.new(self, :FlexFieldsDynamicMethods)
         @dynamic_methods_module.remove_all_methods!
 
-        field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module)
+        field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module, model_class)
 
         if delegation_type
           add_custom_methods!(model_class._flex_column_dynamic_methods_module,
@@ -149,15 +149,19 @@ module FlexColumns
           mn = custom_method
           mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
 
-          flex_object_method_name = cn
-          flex_object_method_name = "#{options[:prefix]}_#{flex_object_method_name}" if options[:prefix]
+          column = model_class.columns.detect { |c| c.name.to_s == mn.to_s }
 
-          dynamic_methods_module.define_method(mn) do |*args, &block|
-            flex_object = send(flex_object_method_name)
-            flex_object.send(custom_method, *args, &block)
+          unless column
+            flex_object_method_name = cn
+            flex_object_method_name = "#{options[:prefix]}_#{flex_object_method_name}" if options[:prefix]
+
+            dynamic_methods_module.define_method(mn) do |*args, &block|
+              flex_object = send(flex_object_method_name)
+              flex_object.send(custom_method, *args, &block)
+            end
+
+            dynamic_methods_module.private(custom_method) if options[:visibility] == :private
           end
-
-          dynamic_methods_module.private(custom_method) if options[:visibility] == :private
         end
       end
 

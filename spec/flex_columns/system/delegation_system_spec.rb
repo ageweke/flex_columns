@@ -43,6 +43,53 @@ describe "FlexColumns delegation" do
     end
   end
 
+  it "should not override columns on the model object" do
+    migrate do
+      drop_table :flexcols_spec_users
+      create_table :flexcols_spec_users do |t|
+        t.string :name, :null => false
+        t.string :foo
+        t.string :baz
+        t.text :user_attributes
+      end
+    end
+
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes do
+        field :foo
+        field :bar
+
+        def baz
+          foo + "!!"
+        end
+      end
+    end
+
+    ::User.reset_column_information
+
+    define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
+
+    user = ::User.new
+    user.name = 'User 1'
+    user.foo = "outer_foo"
+    user.baz = "outer_baz"
+    user.user_attributes.foo = "inner_foo"
+    user.save!
+
+    user_again = ::User.find(user.id)
+    user_again.foo.should == "outer_foo"
+    user_again.user_attributes.foo.should == "inner_foo"
+    user_again.baz.should == "outer_baz"
+    user_again.user_attributes.baz.should == "inner_foo!!"
+
+    user_bd = ::UserBackdoor.find(user.id)
+    user_bd.foo.should == "outer_foo"
+    user_bd.baz.should == "outer_baz"
+    parsed = JSON.parse(user_bd.user_attributes)
+    parsed.keys.should == [ 'foo' ]
+    parsed['foo'].should == "inner_foo"
+  end
+
   it "should let you turn off delegation for a column" do
     define_model_class(:User, 'flexcols_spec_users') do
       flex_column :user_attributes, :delegate => false do

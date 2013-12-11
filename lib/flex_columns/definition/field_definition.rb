@@ -51,29 +51,31 @@ module FlexColumns
         end
       end
 
-      def add_methods_to_model_class!(dynamic_methods_module)
+      def add_methods_to_model_class!(dynamic_methods_module, model_class)
         return if (! flex_column_class.delegation_type)
 
         mn = field_name
         mn = "#{flex_column_class.delegation_prefix}_#{mn}" if flex_column_class.delegation_prefix
 
+        model_column = model_class.columns.detect { |c| c.name.to_s == mn.to_s }
+        return if model_column
+
         fcc = flex_column_class
         fn = field_name
+
+        should_be_private = (private? || flex_column_class.delegation_type == :private)
 
         dynamic_methods_module.define_method(mn) do
           flex_instance = fcc.object_for(self)
           flex_instance[fn]
         end
+        dynamic_methods_module.private(mn) if should_be_private
 
         dynamic_methods_module.define_method("#{mn}=") do |x|
           flex_instance = fcc.object_for(self)
           flex_instance[fn] = x
         end
-
-        if private? || flex_column_class.delegation_type == :private
-          dynamic_methods_module.private(mn)
-          dynamic_methods_module.private("#{mn}=")
-        end
+        dynamic_methods_module.private("#{mn}=") if should_be_private
       end
 
       def add_methods_to_included_class!(dynamic_methods_module, association_name, options)

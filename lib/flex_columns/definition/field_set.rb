@@ -26,10 +26,10 @@ module FlexColumns
         fields_by_json_storage_names[field.json_storage_name] = field
       end
 
-      def add_delegated_methods!(column_dynamic_methods_module, model_dynamic_methods_module)
+      def add_delegated_methods!(column_dynamic_methods_module, model_dynamic_methods_module, model_class)
         each_field do |field_definition|
           field_definition.add_methods_to_flex_column_class!(column_dynamic_methods_module)
-          field_definition.add_methods_to_model_class!(model_dynamic_methods_module)
+          field_definition.add_methods_to_model_class!(model_dynamic_methods_module, model_class)
         end
       end
 

@@ -49,7 +49,7 @@ describe FlexColumns::Contents::ColumnData do
   end
 
   def new_with_string(s)
-    klass.new(@field_set, :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :json_string => s)
+    klass.new(@field_set, :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true)
   end
 
   it "should validate options properly" do
