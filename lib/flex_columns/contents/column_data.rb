@@ -4,25 +4,63 @@ require 'zlib'
 
 module FlexColumns
   module Contents
+    # ColumnData is one of the core classes in +flex_columns+. An instance of ColumnData represents the data present
+    # in a single row for a single flex column; it stores that data, is used to set and retrieve that data, and can
+    # serialize and deserialize itself from and to JSON (with headers and optional compression added for binary storage).
+    #
+    # Clients do not interact with ColumnData itself; rather, they interact with an instance of a generated subclass
+    # of FlexColumnsContentsBase, and it delegates core methods to this object.
     class ColumnData
+      # Creates a new instance. +field_set+ is the FlexColumns::Definition::FieldSet that contains the set of fields
+      # defined for this flex column; +options+ can contain:
+      #
+      # [:storage_string] The data present in the column in the database; this can be omitted if creating an instance
+      #                   for a row that has no data, or for a new row.
+      # [:data_source] Where did that data come from? This can be any object; it must respond to
+      #                #describe_flex_column_data_source (no arguments), which should return a String that is used
+      #                in thrown exceptions to let the client know what data caused the problem; it also must respond to
+      #                #notification_hash_for_flex_column_data_source (no arguments), which should return a Hash that
+      #                is used to generate the payload for the ActiveSupport::Notification calls this class makes.
+      #                (This is, in practice, always an instance of the FlexColumnsContentsBase subclass generated for the
+      #                column.)
+      # [:unknown_fields] Must pass +:preserve+ or +:delete+. If there are keys in the serialized JSON that do not
+      #                   correspond to any fields that the FieldSet knows about, this determines what will happen to
+      #                   that data when re-serializing it to save: +:preserve+ keeps that data, while +:delete+ removes
+      #                   it. (In neither case is that data actually accessible; you must declare a field if you want
+      #                   access to it.)
+      # [:length_limit] If present, specifies the maximum length of data that can be stored in the underlying storage
+      #                 mechanism (the column). When serializing data, this object will raise an exception if the
+      #                 serialized form is longer than this limit. This is used to avoid cases where the database might
+      #                 otherwise silently truncate the data being stored (I'm looking at you, MySQL) and hence corrupt
+      #                 stored data.
+      # [:storage] This must be +:binary+ or +:text+. If +:text+, standard, uncompressed JSON will always be stored.
+      #            (It is not possible to store compressed data reliably in a text column, because the database will
+      #            interpret the bytes as characters and may modify them or raise an exception if byte sequences are
+      #            present that would be invalid characters in whatever encoding it's using.) If :binary, then a very
+      #            small header will be written that's just for versioning (currently +FC:01,+), followed by a marker
+      #            indicating if it's compressed (+1,+) or not (+0,+), followed by either standard, uncompressed JSON
+      #            encoded in UTF-8 or GZipped
       def initialize(field_set, options = { })
-        options.assert_valid_keys(:json_string, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length)
+        options.assert_valid_keys(:storage_string, :data_source, :unknown_fields, :length_limit, :storage,
+          :compress_if_over_length, :binary_header)
 
-        @json_string = options[:json_string]
+        @storage_string = options[:storage_string]
         @field_set = field_set
         @data_source = options[:data_source]
         @unknown_fields = options[:unknown_fields]
         @length_limit = options[:length_limit]
         @storage = options[:storage]
         @compress_if_over_length = options[:compress_if_over_length]
+        @binary_header = options[:binary_header]
 
-        raise ArgumentError, "Invalid JSON string: #{json_string.inspect}" if json_string && (! json_string.kind_of?(String))
+        raise ArgumentError, "Invalid JSON string: #{storage_string.inspect}" if storage_string && (! storage_string.kind_of?(String))
         raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::Definition::FieldSet)
         raise ArgumentError, "Must supply a data source, not: #{data_source.inspect}" unless data_source
         raise ArgumentError, "Invalid value for :unknown_fields: #{unknown_fields.inspect}" unless [ :preserve, :delete ].include?(unknown_fields)
         raise ArgumentError, "Invalid value for :length_limit: #{length_limit.inspect}" if length_limit && (! (length_limit.kind_of?(Integer) && length_limit >= 8))
         raise ArgumentError, "Invalid value for :storage: #{storage.inspect}" unless [ :binary, :text ].include?(storage)
         raise ArgumentError, "Invalid value for :compress_if_over_length: #{compress_if_over_length.inspect}" if compress_if_over_length && (! compress_if_over_length.kind_of?(Integer))
+        raise ArgumentError, "Invalid value for :binary_header: #{binary_header.inspect}" unless [ true, false ].include?(binary_header)
 
 
         @field_contents_by_field_name = nil
@@ -98,8 +136,8 @@ module FlexColumns
       end
 
       private
-      attr_reader :json_string, :field_set, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length
-      attr_reader :field_contents_by_field_name, :unknown_field_contents_by_key
+      attr_reader :storage_string, :field_set, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length
+      attr_reader :field_contents_by_field_name, :unknown_field_contents_by_key, :binary_header
 
       FLEX_COLUMN_CURRENT_VERSION_NUMBER = 1
       MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION = 0.95
@@ -120,14 +158,16 @@ module FlexColumns
       end
 
       def to_binary_storage(json_string)
-        json_string = json_string.force_encoding("BINARY") if json_string.respond_to?(:force_encoding)
+        json_string = json_string.force_encoding(Encoding::BINARY) if json_string.respond_to?(:force_encoding)
+        return json_string if (! binary_header)
+
         header = "FC:%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
 
         if compress_if_over_length && json_string.length > compress_if_over_length
           compressed = compress(json_string)
-          compressed.force_encoding("BINARY") if compressed.respond_to?(:force_encoding)
+          compressed.force_encoding(Encoding::BINARY) if compressed.respond_to?(:force_encoding)
           compressed = header + "1," + compressed
-          compressed.force_encoding("BINARY") if compressed.respond_to?(:force_encoding)
+          compressed.force_encoding(Encoding::BINARY) if compressed.respond_to?(:force_encoding)
         end
 
         if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
@@ -209,7 +249,7 @@ module FlexColumns
 
       def deserialize_if_necessary!
         unless field_contents_by_field_name
-          raw_data = json_string || ''
+          raw_data = storage_string || ''
 
           if raw_data.respond_to?(:valid_encoding?) && (! raw_data.valid_encoding?)
             raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(data_source, raw_data)

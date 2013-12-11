@@ -3,14 +3,17 @@ module FlexColumns
     module FlexColumnContentsClass
       DEFAULT_MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200
 
-      def _flex_columns_create_column_data(json_string, data_source)
+      def _flex_columns_create_column_data(storage_string, data_source)
         create_options = {
-          :json_string    => json_string,
+          :storage_string => storage_string,
           :data_source    => data_source,
           :unknown_fields => options[:unknown_fields] || :preserve,
           :length_limit   => column.limit,
-          :storage        => column.type == :binary ? :binary : :text
+          :storage        => column.type == :binary ? :binary : :text,
+          :binary_header  => true
         }
+
+        create_options[:binary_header] = false if options.has_key?(:header) && (! options[:header])
 
         if (! options.has_key?(:compress))
           create_options[:compress_if_over_length] = DEFAULT_MAX_JSON_LENGTH_BEFORE_COMPRESSION
@@ -99,7 +102,7 @@ module FlexColumns
   It has columns named: #{model_class.columns.map(&:name).sort.join(", ")}.}
         end
 
-        unless column.type == :binary || column.text?
+        unless column.type == :binary || column.text? || column.sql_type == "json" # for PostgreSQL
           raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
   that column (on model #{model_class.name}) isn't of a type that accepts text.
   That column is of type: #{column.type.inspect}.}
@@ -163,7 +166,7 @@ module FlexColumns
           raise ArgumentError, "You must pass a Hash, not: #{options.inspect}"
         end
 
-        options.assert_valid_keys(:visibility, :prefix, :delegate, :unknown_fields, :compress)
+        options.assert_valid_keys(:visibility, :prefix, :delegate, :unknown_fields, :compress, :header)
 
         unless [ nil, :private, :public ].include?(options[:visibility])
           raise ArgumentError, "Invalid value for :visibility: #{options[:visibility.inspect]}"
@@ -175,6 +178,10 @@ module FlexColumns
 
         unless [ true, false, nil ].include?(options[:compress]) || options[:compress].kind_of?(Integer)
           raise ArgumentError, "Invalid value for :compress: #{options[:compress].inspect}"
+        end
+
+        unless [ true, false, nil ].include?(options[:header])
+          raise ArgumentError, "Invalid value for :header: #{options[:header].inspect}"
         end
 
         case options[:prefix]

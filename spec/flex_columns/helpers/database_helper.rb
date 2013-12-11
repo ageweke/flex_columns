@@ -18,6 +18,15 @@ module FlexColumns
         config # make sure we raise on instantiation if configuration is invalid
       end
 
+      def database_type
+        case database_gem_name
+        when /mysql/i then :mysql
+        when /sqlite/i then :sqlite
+        when /pg/i then :postgres
+        else raise "Unknown database type for Gem name: #{database_gem_name.inspect}"
+        end
+      end
+
       def setup_activerecord!
         require 'active_record'
         require config[:require]

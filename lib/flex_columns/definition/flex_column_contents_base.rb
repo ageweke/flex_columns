@@ -27,8 +27,8 @@ module FlexColumns
   not #{input.inspect} (#{input.object_id}).}
         end
 
-        json_string = raw_string || model_instance[self.class.column_name]
-        @column_data = self.class._flex_columns_create_column_data(json_string, self)
+        storage_string = raw_string || model_instance[self.class.column_name]
+        @column_data = self.class._flex_columns_create_column_data(storage_string, self)
       end
 
       def describe_flex_column_data_source

@@ -32,6 +32,38 @@ describe "FlexColumns compression operations" do
     end
   end
 
+  it "should not add a header, and should not compress data, if passed :header => false" do
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :header => false do
+        field :foo
+        field :bar
+      end
+    end
+
+    user = ::User.new
+    user.name = 'User 1'
+    user.foo = "foo1"
+    user.bar = "bar1"
+    user.save!
+
+    user_bd = ::UserBackdoor.find(user.id)
+    data = user_bd.user_attributes
+    parsed = JSON.parse(data)
+    parsed.keys.sort.should == %w{foo bar}.sort
+
+    user = ::User.new
+    user.name = 'User 1'
+    user.foo = "foo" * 10_000
+    user.bar = "bar1"
+    user.save!
+
+    user_bd = ::UserBackdoor.find(user.id)
+    data = user_bd.user_attributes
+    data.length.should > 30_000
+    parsed = JSON.parse(data)
+    parsed.keys.sort.should == %w{foo bar}.sort
+  end
+
   it "should not compress short data" do
     user = ::User.new
     user.name = 'User 1'
