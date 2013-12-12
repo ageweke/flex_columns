@@ -40,20 +40,22 @@ module FlexColumns
         true
       end
 
-      def include_fields_into(dynamic_methods_module, association_name, options)
+      def include_fields_into(dynamic_methods_module, association_name, target_class, options)
         cn = column_name
         mn = column_name
         mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
 
-        dynamic_methods_module.define_method(mn) do
-          associated_object = send(association_name) || send("build_#{association_name}")
-          associated_object.send(cn)
+        if target_class._flex_columns_safe_to_define_method?(mn)
+          dynamic_methods_module.define_method(mn) do
+            associated_object = send(association_name) || send("build_#{association_name}")
+            associated_object.send(cn)
+          end
+          dynamic_methods_module.private(mn) if options[:visibility] == :private
         end
-        dynamic_methods_module.private(mn) if options[:visibility] == :private
 
         unless options.has_key?(:delegate) && (! options[:delegate])
-          add_custom_methods!(dynamic_methods_module, options)
-          field_set.include_fields_into(dynamic_methods_module, association_name, options)
+          add_custom_methods!(dynamic_methods_module, target_class, options)
+          field_set.include_fields_into(dynamic_methods_module, association_name, target_class, options)
         end
       end
 
@@ -132,7 +134,7 @@ module FlexColumns
         field_set.add_delegated_methods!(@dynamic_methods_module, model_class._flex_column_dynamic_methods_module, model_class)
 
         if delegation_type
-          add_custom_methods!(model_class._flex_column_dynamic_methods_module,
+          add_custom_methods!(model_class._flex_column_dynamic_methods_module, model_class,
             :visibility => (delegation_type == :private ? :private : :public))
         end
       end
@@ -142,21 +144,16 @@ module FlexColumns
       private
       attr_reader :fields, :options, :custom_methods, :field_set, :column
 
-      def add_custom_methods!(dynamic_methods_module, options = { })
+      def add_custom_methods!(dynamic_methods_module, target_class, options = { })
         cn = column_name
 
         custom_methods.each do |custom_method|
           mn = custom_method
           mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
 
-          column = model_class.columns.detect { |c| c.name.to_s == mn.to_s }
-
-          unless column
-            flex_object_method_name = cn
-            flex_object_method_name = "#{options[:prefix]}_#{flex_object_method_name}" if options[:prefix]
-
+          if target_class._flex_columns_safe_to_define_method?(mn)
             dynamic_methods_module.define_method(mn) do |*args, &block|
-              flex_object = send(flex_object_method_name)
+              flex_object = _flex_column_object_for(cn)
               flex_object.send(custom_method, *args, &block)
             end
 

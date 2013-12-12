@@ -37,9 +37,9 @@ module FlexColumns
         fields.keys
       end
 
-      def include_fields_into(dynamic_methods_module, association_name, options)
+      def include_fields_into(dynamic_methods_module, association_name, target_class, options)
         each_field do |field_definition|
-          field_definition.add_methods_to_included_class!(dynamic_methods_module, association_name, options)
+          field_definition.add_methods_to_included_class!(dynamic_methods_module, association_name, target_class, options)
         end
       end
 

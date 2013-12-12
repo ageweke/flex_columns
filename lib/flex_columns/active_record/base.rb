@@ -38,6 +38,19 @@ module FlexColumns
           include FlexColumns::Including::IncludeFlexColumns
           include_flex_columns_from(*args, &block)
         end
+
+        def _flex_columns_safe_to_define_method?(method_name)
+          base_name = method_name.to_s
+          base_name = $1 if base_name =~ /^(.*)=$/i
+
+          reason = nil
+
+          reason ||= :column if columns.detect { |c| c.name.to_s == base_name }
+          # return false if method_defined?(base_name) || method_defined?("#{base_name}=")
+          reason ||= :instance_method if instance_methods.include?(base_name)
+
+          (! reason)
+        end
       end
     end
   end

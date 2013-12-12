@@ -57,28 +57,27 @@ module FlexColumns
         mn = field_name
         mn = "#{flex_column_class.delegation_prefix}_#{mn}" if flex_column_class.delegation_prefix
 
-        model_column = model_class.columns.detect { |c| c.name.to_s == mn.to_s }
-        return if model_column
+        if model_class._flex_columns_safe_to_define_method?(mn)
+          fcc = flex_column_class
+          fn = field_name
 
-        fcc = flex_column_class
-        fn = field_name
+          should_be_private = (private? || flex_column_class.delegation_type == :private)
 
-        should_be_private = (private? || flex_column_class.delegation_type == :private)
+          dynamic_methods_module.define_method(mn) do
+            flex_instance = fcc.object_for(self)
+            flex_instance[fn]
+          end
+          dynamic_methods_module.private(mn) if should_be_private
 
-        dynamic_methods_module.define_method(mn) do
-          flex_instance = fcc.object_for(self)
-          flex_instance[fn]
+          dynamic_methods_module.define_method("#{mn}=") do |x|
+            flex_instance = fcc.object_for(self)
+            flex_instance[fn] = x
+          end
+          dynamic_methods_module.private("#{mn}=") if should_be_private
         end
-        dynamic_methods_module.private(mn) if should_be_private
-
-        dynamic_methods_module.define_method("#{mn}=") do |x|
-          flex_instance = fcc.object_for(self)
-          flex_instance[fn] = x
-        end
-        dynamic_methods_module.private("#{mn}=") if should_be_private
       end
 
-      def add_methods_to_included_class!(dynamic_methods_module, association_name, options)
+      def add_methods_to_included_class!(dynamic_methods_module, association_name, target_class, options)
         return if (! flex_column_class.delegation_type)
 
         prefix = options[:prefix] || flex_column_class.delegation_prefix
@@ -99,21 +98,23 @@ module FlexColumns
         fcc = flex_column_class
         fn = field_name
 
-        dynamic_methods_module.define_method(mn) do
-          associated_object = send(association_name) || send("build_#{association_name}")
-          flex_column_object = associated_object.send(fcc.column_name)
-          flex_column_object.send(fn)
-        end
+        if target_class._flex_columns_safe_to_define_method?(mn)
+          dynamic_methods_module.define_method(mn) do
+            associated_object = send(association_name) || send("build_#{association_name}")
+            flex_column_object = associated_object.send(fcc.column_name)
+            flex_column_object.send(fn)
+          end
 
-        dynamic_methods_module.define_method("#{mn}=") do |x|
-          associated_object = send(association_name) || send("build_#{association_name}")
-          flex_column_object = associated_object.send(fcc.column_name)
-          flex_column_object.send("#{fn}=", x)
-        end
+          dynamic_methods_module.define_method("#{mn}=") do |x|
+            associated_object = send(association_name) || send("build_#{association_name}")
+            flex_column_object = associated_object.send(fcc.column_name)
+            flex_column_object.send("#{fn}=", x)
+          end
 
-        if is_private
-          dynamic_methods_module.private(mn)
-          dynamic_methods_module.private("#{mn}=")
+          if is_private
+            dynamic_methods_module.private(mn)
+            dynamic_methods_module.private("#{mn}=")
+          end
         end
       end
 

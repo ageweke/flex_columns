@@ -25,6 +25,14 @@ module FlexColumns
     end
 
     def _flex_column_object_for(column_name)
+      begin
+        return super(column_name)
+      rescue NoMethodError
+        # ok
+      rescue FlexColumns::Errors::NoSuchColumnError
+        # ok
+      end
+
       column_name = self.class._flex_column_normalize_name(column_name)
       _flex_column_objects[column_name] ||= self.class._flex_column_class_for(column_name).new(self)
     end
