@@ -178,5 +178,40 @@ describe "FlexColumns basic operations" do
       output['baz'].should == [ 'a', 'b', 'c' ]
       output['foo'].should == 47.2
     end
+
+    it "should remove keys entirely when they're set to nil, but not if they're set to false" do
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes do
+          field :aaa
+          field :bbb
+        end
+      end
+
+      ::User.reset_column_information
+
+      user = ::User.new
+      user.name = 'User 1'
+      user.aaa = 'aaa1'
+      user.bbb = 'bbb1'
+      user.save!
+
+      user_bd = ::UserBackdoor.find(user.id)
+      JSON.parse(user_bd.user_attributes).keys.sort.should == %w{aaa bbb}.sort
+
+      user.aaa = false
+      user.save!
+
+      user_bd = ::UserBackdoor.find(user.id)
+      parsed = JSON.parse(user_bd.user_attributes)
+      parsed.keys.sort.should == %w{aaa bbb}.sort
+      parsed['aaa'].should == false
+
+      user.aaa = nil
+      user.save!
+
+      user_bd = ::UserBackdoor.find(user.id)
+      parsed = JSON.parse(user_bd.user_attributes)
+      parsed.keys.sort.should == %w{bbb}.sort
+    end
   end
 end

@@ -111,7 +111,7 @@ module FlexColumns
 
         field_contents_by_field_name.each do |field_name, field_contents|
           storage_name = field_set.field_named(field_name).json_storage_name
-          storage_hash[storage_name] = field_contents
+          storage_hash[storage_name] = field_contents unless field_contents == nil
         end
 
         as_string = storage_hash.to_json
