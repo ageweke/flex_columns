@@ -41,20 +41,39 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
     columns = [ @column_foo, @column_bar, @column_baz, @column_ajson ]
     allow(@model_class).to receive(:columns).with().and_return(columns)
 
+    allow(@model_class).to receive(:const_defined?).and_return(false)
+    allow(@model_class).to receive(:const_set)
+
     @field_set = double("field_set")
     allow(FlexColumns::Definition::FieldSet).to receive(:new).and_return(@field_set)
   end
 
   describe "setup!" do
+    describe "pre-setup errors" do
+      def should_raise_if_not_set_up(&block)
+        block.should raise_error(/setup!/i)
+      end
+
+      it "should raise an error if any other method is called" do
+        should_raise_if_not_set_up { @klass._flex_columns_create_column_data(double("storage_string"), double("data_source")) }
+        should_raise_if_not_set_up { @klass.field(:foo) }
+        should_raise_if_not_set_up { @klass.field_named(:foo) }
+        should_raise_if_not_set_up { @klass.field_with_json_storage_name(:foo) }
+        should_raise_if_not_set_up { @klass.include_fields_into(double("dynamic_methods_module"),
+          double("association_name"), double("target_class"), { }) }
+        should_raise_if_not_set_up { @klass.object_for(double("model_instance")) }
+        should_raise_if_not_set_up { @klass.delegation_prefix }
+        should_raise_if_not_set_up { @klass.delegation_type }
+        should_raise_if_not_set_up { @klass.column_name }
+        should_raise_if_not_set_up { @klass.fields_are_private_by_default? }
+      end
+    end
+
     it "should work with no options" do
-      expect(@model_class).to receive(:const_defined?).with(:FooFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:FooFlexContents, @klass)
       @klass.setup!(@model_class, :foo) { }
     end
 
     it "should not allow itself to be called twice" do
-      expect(@model_class).to receive(:const_defined?).with(:FooFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:FooFlexContents, @klass)
       @klass.setup!(@model_class, :foo) { }
 
       lambda { @klass.setup!(@model_class, :foo) { } }.should raise_error(ArgumentError)
@@ -92,20 +111,14 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
     end
 
     it "should work on a text column" do
-      expect(@model_class).to receive(:const_defined?).with(:FooFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:FooFlexContents, @klass)
       @klass.setup!(@model_class, :foo) { }
     end
 
     it "should work on a binary column" do
-      expect(@model_class).to receive(:const_defined?).with(:BarFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:BarFlexContents, @klass)
       @klass.setup!(@model_class, :bar) { }
     end
 
     it "should work on a JSON column" do
-      expect(@model_class).to receive(:const_defined?).with(:AjsonFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:AjsonFlexContents, @klass)
       @klass.setup!(@model_class, :ajson) { }
     end
 
@@ -119,9 +132,6 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
     end
 
     it "should run the block it's passed" do
-      expect(@model_class).to receive(:const_defined?).with(:FooFlexContents).and_return(false)
-      expect(@model_class).to receive(:const_set).once.with(:FooFlexContents, @klass)
-
       expect(@klass).to receive(:foobar).once.with(:foo, :bar, :baz).and_return(:quux)
 
       @klass.setup!(@model_class, :foo) do
@@ -175,6 +185,266 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
 
       it "should reject incompatible :visibility and :delegate options" do
         should_reject(:visibility => :private, :delegate => :public)
+      end
+    end
+  end
+
+  describe "_flex_columns_create_column_data" do
+    def expect_options_transform(class_options, length_limit, resulting_options, column_name = :foo, storage_string = double("storage_string"))
+      @klass.setup!(@model_class, column_name, class_options)
+
+      data_source = double("data_source")
+
+      allow(instance_variable_get("@column_#{column_name}")).to receive(:limit).with().and_return(length_limit)
+
+      resulting_options = { :storage_string => storage_string, :data_source => data_source }.merge(resulting_options)
+
+      expect(FlexColumns::Contents::ColumnData).to receive(:new).once.with(@field_set, resulting_options)
+
+      @klass._flex_columns_create_column_data(storage_string, data_source)
+    end
+
+    it "should create a new ColumnData object with correct default options" do
+      expect_options_transform({ }, nil, {
+        :unknown_fields => :preserve,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200
+      })
+    end
+
+    it "should allow a nil storage string" do
+      expect_options_transform({ }, nil, {
+        :unknown_fields => :preserve,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200,
+        :storage_string => nil
+      }, :foo, nil)
+    end
+
+    it "should pass through :unknown_fields correctly" do
+      expect_options_transform({ :unknown_fields => :delete }, nil, {
+        :unknown_fields => :delete,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200
+      })
+    end
+
+    it "should pass through the column limit correctly" do
+      expect_options_transform({ }, 123, {
+        :unknown_fields => :preserve,
+        :length_limit => 123,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200
+      })
+    end
+
+    it "should pass through the column type correctly for a binary column" do
+      expect_options_transform({ }, 123, {
+        :unknown_fields => :preserve,
+        :length_limit => 123,
+        :storage => :binary,
+        :binary_header => true,
+        :compress_if_over_length => 200
+      }, :bar)
+    end
+
+    it "should pass through the column type correctly for a JSON column" do
+      expect_options_transform({ }, 123, {
+        :unknown_fields => :preserve,
+        :length_limit => 123,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200
+      }, :ajson)
+    end
+
+    it "should pass through disabled compression correctly" do
+      expect_options_transform({ :compress => false }, nil, {
+        :unknown_fields => :preserve,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => true
+      })
+    end
+
+    it "should pass through a compression setting correctly" do
+      expect_options_transform({ :compress => 234 }, nil, {
+        :unknown_fields => :preserve,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 234
+      })
+    end
+
+    it "should pass through a no-binary-header setting correctly" do
+      expect_options_transform({ :header => false }, nil, {
+        :unknown_fields => :preserve,
+        :length_limit => nil,
+        :storage => :text,
+        :binary_header => false,
+        :compress_if_over_length => 200
+      })
+    end
+  end
+
+  context "with a set-up class" do
+    before :each do
+      @klass.setup!(@model_class, :foo) { }
+    end
+
+    it "should pass through :field to the field set" do
+      expect(@field_set).to receive(:field).once.with(:foo, :bar, :baz => :quux)
+      @klass.field(:foo, :bar, :baz => :quux)
+    end
+
+    it "should pass through :field_named to the field set" do
+      expect(@field_set).to receive(:field_named).once.with(:quux).and_return(:bar)
+      @klass.field_named(:quux).should == :bar
+    end
+
+    it "should pass through :field_with_json_storage_name to the field set" do
+      expect(@field_set).to receive(:field_with_json_storage_name).once.with(:quux).and_return(:bar)
+      @klass.field_with_json_storage_name(:quux).should == :bar
+    end
+
+    it "should be a flex-column class" do
+      @klass.is_flex_column_class?.should be
+    end
+
+    describe "#include_fields_into" do
+      before :each do
+        @dmm = double("dynamic_methods_module")
+        @target_class = double("target_class")
+
+        @associated_object = double("associated_object")
+
+        @block_context = Object.new
+
+        class << @block_context
+          def bar_return=(x)
+            @bar_return = x
+          end
+
+          def bar
+            @bar_return
+          end
+
+          def build_bar_return=(x)
+            @build_bar_return = x
+          end
+
+          def build_bar
+            @build_bar_return
+          end
+
+          def set_flex_column_object_for!(x, y)
+            @_flex_column_objects_for ||= { }
+            @_flex_column_objects_for[x] = y
+          end
+
+          def _flex_column_object_for(x)
+            @_flex_column_objects_for[x]
+          end
+
+          def run_block(x, *args, &b)
+            x.call(*args, &b)
+          end
+        end
+      end
+
+      it "should define a method that's safe to define, and nothing else, if :delegate => false" do
+        defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
+        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        @block_context.bar_return = @associated_object
+
+        @block_context.instance_eval(&defined_block)
+      end
+
+      it "should define a method that falls back to build_<x>" do
+        defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
+        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        @block_context.bar_return = nil
+        @block_context.build_bar_return = @associated_object
+
+        @block_context.instance_eval(&defined_block)
+      end
+
+      it "should define a method that's private, if requested" do
+        defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
+        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
+        expect(@dmm).to receive(:private).with("foo").once
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false, :visibility => :private })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        @block_context.bar_return = @associated_object
+
+        @block_context.instance_eval(&defined_block)
+      end
+
+      it "should prefix the method name, if requested" do
+        defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_foo").and_return(true)
+        expect(@dmm).to receive(:define_method).once.with("baz_foo") { |&block| defined_block = block }
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false, :prefix => "baz" })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        @block_context.bar_return = @associated_object
+
+        @block_context.instance_eval(&defined_block)
+      end
+
+      it "should add custom methods, and prefix them if needed" do
+        @klass = Class.new
+        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}"; end }
+
+        defined_block = nil
+        cm_defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_foo").and_return(true)
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_cm1").and_return(true)
+
+        expect(@dmm).to receive(:define_method).once.with("baz_foo") { |&block| defined_block = block }
+        expect(@dmm).to receive(:define_method).once.with("baz_cm1") { |&block| cm_defined_block = block }
+
+        expect(@field_set).to receive(:include_fields_into).once.with(@dmm, :bar, @target_class, { :prefix => "baz" })
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :prefix => "baz" })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        @block_context.bar_return = @associated_object
+        @block_context.instance_eval(&defined_block)
+
+        flex_object = double("flex_object")
+        expect(flex_object).to receive(:cm1).once.with(:bar, :baz).and_return(:quux)
+
+        @block_context.set_flex_column_object_for!(:foo, flex_object)
+        @block_context.instance_exec(:bar, :baz, &cm_defined_block)
       end
     end
   end

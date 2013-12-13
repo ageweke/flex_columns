@@ -19,6 +19,8 @@ module FlexColumns
       # This is used by instances of the generated Class to create the ColumnData object that does most of the work of
       # actually serializing/deserializing JSON and storing data for that instance.
       def _flex_columns_create_column_data(storage_string, data_source)
+        ensure_setup!
+
         create_options = {
           :storage_string => storage_string,
           :data_source    => data_source,
@@ -41,17 +43,20 @@ module FlexColumns
 
       # This is what gets called when you declare a field inside a flex column.
       def field(name, *args)
+        ensure_setup!
         field_set.field(name, *args)
       end
 
       # Returns the field with the given name, or nil if there is no such field.
       def field_named(name)
+        ensure_setup!
         field_set.field_named(name)
       end
 
       # Returns the field that stores its JSON under the given key (+json_storage_name+), or nil if there is no such
       # field.
       def field_with_json_storage_name(json_storage_name)
+        ensure_setup!
         field_set.field_with_json_storage_name(json_storage_name)
       end
 
@@ -70,8 +75,10 @@ module FlexColumns
       # public or private, +:delegate+ to turn off delegation of anything other than the flex column itself, or
       # +:prefix+ to set a prefix for the delegated method names.
       def include_fields_into(dynamic_methods_module, association_name, target_class, options)
+        ensure_setup!
+
         cn = column_name
-        mn = column_name
+        mn = column_name.to_s
         mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
 
         # Make sure we don't overwrite some #method_missing magic that defines a column accessor, or something
@@ -93,17 +100,20 @@ module FlexColumns
       # Given an instance of the model that this flex column is defined on, return the appropriate flex-column
       # object for that instance. This simply delegates to #_flex_column_object_for on that model instance.
       def object_for(model_instance)
+        ensure_setup!
         model_instance._flex_column_object_for(column.name)
       end
 
       # When we delegate methods, what should we prefix them with (if anything)?
       def delegation_prefix
+        ensure_setup!
         options[:prefix].try(:to_s)
       end
 
       # When we delegate methods, should we delegate them at all (returns +nil+), publicly (+:public+), or
       # privately (+:private+)?
       def delegation_type
+        ensure_setup!
         return :public if (! options.has_key?(:delegate))
 
         case options[:delegate]
@@ -117,11 +127,13 @@ module FlexColumns
 
       # What's the name of the actual model column this flex-column uses? Returns a Symbol.
       def column_name
+        ensure_setup!
         column.name.to_sym
       end
 
       # Are fields in this flex column private by default?
       def fields_are_private_by_default?
+        ensure_setup!
         options[:visibility] == :private
       end
 
@@ -129,7 +141,8 @@ module FlexColumns
       # (and has to be), this can't actually be #initialize. (Another way of saying it: objects have initializers;
       # classes do not.)
       #
-      # You must call this method exactly once for each class that extends this module.
+      # You must call this method exactly once for each class that extends this module, and before you call any other
+      # method.
       #
       # +model_class+ must be the ActiveRecord model class for this flex column. +column_name+ must be the name of
       # the column that you're using as a flex column. +options+ can contain any of:
@@ -276,6 +289,13 @@ module FlexColumns
 
         if options[:visibility] == :private && options[:delegate] == :public
           raise ArgumentError, "You can't have public delegation if methods in the flex column are private; this makes no sense, as methods in the model class would have *greater* visibility than methods on the flex column itself"
+        end
+      end
+
+      # Make sure someone has called setup! previously.
+      def ensure_setup!
+        unless @model_class
+          raise "You must call #setup! on this class before calling this method."
         end
       end
     end
