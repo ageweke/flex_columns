@@ -215,8 +215,15 @@ module FlexColumns
           compressed.force_encoding(Encoding::BINARY) if compressed.respond_to?(:force_encoding)
         end
 
-        compressed_length = if compressed.respond_to?(:bytesize) then compressed.bytesize else compressed.length end
-        if compressed && compressed_length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_length)
+        compressed_length = if compressed
+          if compressed.respond_to?(:bytesize)
+            compressed.bytesize
+          else
+            compressed.length
+          end
+        end
+
+        if compressed_length && compressed_length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_length)
           compressed
         else
           header + "0," + json_string
