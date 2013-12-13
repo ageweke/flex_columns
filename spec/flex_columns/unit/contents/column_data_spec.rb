@@ -48,8 +48,11 @@ describe FlexColumns::Contents::ColumnData do
     FlexColumns::Contents::ColumnData
   end
 
-  def new_with_string(s)
-    klass.new(@field_set, :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true)
+  def new_with_string(s, options = { })
+    effective_options = {
+      :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true
+      }.merge(options)
+    klass.new(@field_set, effective_options)
   end
 
   it "should validate options properly" do
@@ -111,6 +114,11 @@ describe FlexColumns::Contents::ColumnData do
       @instance.keys.sort_by(&:to_s).should == [ :foo, :bar, :baz ].sort_by(&:to_s)
     end
 
+    it "should not return things set to nil in #keys" do
+      @instance[:bar] = nil
+      @instance.keys.sort_by(&:to_s).should == [ :foo, :baz ].sort_by(&:to_s)
+    end
+
     it "should deserialize, if needed, on check!" do
       instance = new_with_string("---unparseable JSON---")
 
@@ -130,6 +138,84 @@ describe FlexColumns::Contents::ColumnData do
       parsed['foo'].should == 'bar'
       parsed['bar'].should == 123
       parsed['baz'].should == 'quux'
+    end
+
+    describe "#to_stored_data" do
+      it "should return JSON data properly" do
+        json = @instance.to_stored_data
+        parsed = JSON.parse(json)
+        parsed.keys.sort.should == %w{foo bar baz}.sort
+        parsed['foo'].should == 'bar'
+        parsed['bar'].should == 123
+        parsed['baz'].should == 'quux'
+      end
+
+      it "should return JSON from a binary column with :header => false" do
+        @instance = new_with_string(@json_string, :storage => :binary, :binary_header => false)
+        json = @instance.to_stored_data
+        parsed = JSON.parse(json)
+        parsed.keys.sort.should == %w{foo bar baz}.sort
+        parsed['foo'].should == 'bar'
+        parsed['bar'].should == 123
+        parsed['baz'].should == 'quux'
+      end
+
+      it "should return uncompressed JSON from a binary column without compression" do
+        @instance = new_with_string(@json_string, :storage => :binary)
+        stored = @instance.to_stored_data
+        stored.should match(/^FC:01,0,/)
+        json = stored[8..-1]
+
+        parsed = JSON.parse(json)
+        parsed.keys.sort.should == %w{foo bar baz}.sort
+        parsed['foo'].should == 'bar'
+        parsed['bar'].should == 123
+        parsed['baz'].should == 'quux'
+      end
+
+      it "should return compressed JSON from a binary column with compression" do
+        @json_string = ({ :foo => 'bar' * 1000, :bar => 123, :baz => 'quux' }.to_json)
+        @instance = new_with_string(@json_string, :storage => :binary, :compress_if_over_length => 1)
+        stored = @instance.to_stored_data
+        stored.should match(/^FC:01,1,/)
+        compressed = stored[8..-1]
+
+        require 'stringio'
+        input = StringIO.new(compressed, "r")
+        reader = Zlib::GzipReader.new(input)
+        uncompressed = reader.read
+
+        parsed = JSON.parse(uncompressed)
+        parsed.keys.sort.should == %w{foo bar baz}.sort
+        parsed['foo'].should == 'bar' * 1000
+        parsed['bar'].should == 123
+        parsed['baz'].should == 'quux'
+      end
+
+      it "should return uncompressed JSON from a binary column with compression, but that isn't long enough" do
+        @json_string = ({ :foo => 'bar', :bar => 123, :baz => 'quux' }.to_json)
+        @instance = new_with_string(@json_string, :storage => :binary, :compress_if_over_length => 10_000)
+        stored = @instance.to_stored_data
+        stored.should match(/^FC:01,0,/)
+        json = stored[8..-1]
+
+        parsed = JSON.parse(json)
+        parsed.keys.sort.should == %w{foo bar baz}.sort
+        parsed['foo'].should == 'bar'
+        parsed['bar'].should == 123
+        parsed['baz'].should == 'quux'
+      end
+
+      it "should blow up if the string won't fit" do
+        @json_string = ({ :foo => 'bar' * 1000, :bar => 123, :baz => 'quux' }.to_json)
+        @instance = new_with_string(@json_string, :storage => :binary, :length_limit => 1_000)
+
+        e = capture_exception(FlexColumns::Errors::JsonTooLongError) { @instance.to_stored_data }
+        e.data_source.should be(@data_source)
+        e.limit.should == 1_000
+        e.json_string.should match(/^FC:01,0,/)
+        e.json_string.length.should >= 3_000
+      end
     end
 
     describe "deserialization" do
@@ -313,9 +399,56 @@ describe FlexColumns::Contents::ColumnData do
     end
 
     describe "unknown-field handling" do
-      it "should hang on to unknown data if asked"
-      it "should discard unknown data if asked"
-      it "should not allow unknown data to conflict with known data"
+      it "should hang on to unknown data if asked" do
+        s = { :foo => 'bar', :quux => 'baz' }.to_json
+        @instance = new_with_string(s)
+        parsed = JSON.parse(@instance.to_json)
+        parsed['quux'].should == 'baz'
+      end
+
+      it "should discard unknown data if asked" do
+        s = { :foo => 'bar', :quux => 'baz' }.to_json
+        @instance = new_with_string(s, :unknown_fields => :delete)
+        parsed = JSON.parse(@instance.to_json)
+        parsed.keys.should == [ 'foo' ]
+        parsed['quux'].should_not be
+      end
+
+      it "should not allow unknown data to conflict with known data" do
+        field_set = double("field_set")
+        allow(field_set).to receive(:kind_of?).with(FlexColumns::Definition::FieldSet).and_return(true)
+        allow(field_set).to receive(:all_field_names).with().and_return([ :foo ])
+
+        field_foo = double("field_foo")
+        allow(field_foo).to receive(:field_name).and_return(:foo)
+        allow(field_foo).to receive(:json_storage_name).and_return(:bar)
+
+        allow(field_set).to receive(:field_named) do |x|
+          case x.to_sym
+          when :foo then field_foo
+          else nil
+          end
+        end
+
+        allow(field_set).to receive(:field_with_json_storage_name) do |x|
+          case x.to_sym
+          when :bar then field_foo
+          else nil
+          end
+        end
+
+        json_string = { :foo => 'aaa', :bar => 'bbb' }.to_json
+        instance = klass.new(field_set, :storage_string => json_string, :data_source => @data_source,
+          :unknown_fields => :preserve, :storage => :text, :storage_string => json_string, :binary_header => true)
+
+        instance[:foo].should == 'bbb'
+        lambda { instance[:bar] }.should raise_error(FlexColumns::Errors::NoSuchFieldError)
+
+        reparsed = JSON.parse(instance.to_json)
+        reparsed.keys.sort.should == %w{foo bar}.sort
+        reparsed['foo'].should == 'aaa'
+        reparsed['bar'].should == 'bbb'
+      end
     end
   end
 end

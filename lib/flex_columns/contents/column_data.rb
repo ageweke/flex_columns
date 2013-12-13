@@ -39,7 +39,15 @@ module FlexColumns
       #            present that would be invalid characters in whatever encoding it's using.) If :binary, then a very
       #            small header will be written that's just for versioning (currently +FC:01,+), followed by a marker
       #            indicating if it's compressed (+1,+) or not (+0,+), followed by either standard, uncompressed JSON
-      #            encoded in UTF-8 or GZipped
+      #            encoded in UTF-8 or the GZipped version of the same.
+      # [:compress_if_over_length] If present, must be set to an integer. If +:storage+ is +:binary+ and the JSON string
+      #                            is at least this many bytes long, then this class will compress it before
+      #                            returning its stored data (from #to_stored_data); if the compressed version is at
+      #                            most 95% (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION) as long as the uncompressed
+      #                            version, then the compressed version will be used instead.
+      # [:binary_header] Must be +true+ or +false+. If +false+, then, even if +:storage+ is +:binary+, no header will be
+      #                  written to the binary column. (As a consequence, compression will also be disabled, since
+      #                  compression requires the header.)
       def initialize(field_set, options = { })
         options.assert_valid_keys(:storage_string, :data_source, :unknown_fields, :length_limit, :storage,
           :compress_if_over_length, :binary_header)
@@ -67,11 +75,15 @@ module FlexColumns
         @unknown_field_contents_by_key = nil
       end
 
+      # Returns the data for the given +field_name+. Raises FlexColumns::Errors::NoSuchFieldError if there is no field
+      # of the given name. Returns nil if there is such a field, but no data for it.
       def [](field_name)
         field_name = validate_and_deserialize_for_field(field_name)
         field_contents_by_field_name[field_name]
       end
 
+      # Sets the data for the given +field_name+ to the given +new_value+. Raises FlexColumns::Errors::NoSuchFieldError
+      # if there is no field of the given name. Returns +new_value+.
       def []=(field_name, new_value)
         field_name = validate_and_deserialize_for_field(field_name)
 
@@ -87,22 +99,40 @@ module FlexColumns
         # and that's OK.)
         new_value = new_value.to_s if new_value.kind_of?(Symbol)
 
-        field_contents_by_field_name[field_name] = new_value
+        # We deliberately delete from the hash anything that's being set to +nil+; this is so that we don't end up just
+        # binding keys to +nil+, and returning them in #keys, etc. (Yes, this means that you can't distinguish a key
+        # explicitly set to +nil+ from a key that's not present; this is different from Ruby's semantics for a Hash,
+        # but not by very much, and it makes use of +flex_columns+ a whole lot simpler.)
+        if new_value == nil
+          field_contents_by_field_name.delete(field_name)
+          nil
+        else
+          field_contents_by_field_name[field_name] = new_value
+        end
       end
 
+      # Returns an Array of all field names that are currently set to something.
       def keys
         deserialize_if_necessary!
-        field_contents_by_field_name.keys.sort_by(&:to_s)
+        field_contents_by_field_name.keys
       end
 
+      # Does nothing, other than making sure the JSON has been deserialized. This therefore has the effect both of
+      # ensuring that the stored data (if any) is valid, and also will remove any unknown keys (on save) if
+      # +:unknown_fields+ was set to +:delete+.
       def check!
         deserialize_if_necessary!
       end
 
+      # Has this object been deserialized for any reason?
       def touched?
         !! field_contents_by_field_name
       end
 
+      # Returns a String with the current contents of this object as JSON. (This will deserialize from JSON, if it
+      # hasn't already happened.)
+      #
+      # Always returns a string encoded in UTF-8, if we're running on a Ruby >= 1.9 (that is, with encoding support).
       def to_json
         deserialize_if_necessary!
 
@@ -111,7 +141,7 @@ module FlexColumns
 
         field_contents_by_field_name.each do |field_name, field_contents|
           storage_name = field_set.field_named(field_name).json_storage_name
-          storage_hash[storage_name] = field_contents unless field_contents == nil
+          storage_hash[storage_name] = field_contents
         end
 
         as_string = storage_hash.to_json
@@ -120,6 +150,8 @@ module FlexColumns
         as_string
       end
 
+      # Returns the exact String that should be stored in the database -- compressed or not, with header or not, etc.
+      # Raises FlexColumns::Errors::JsonTooLongError if the string is too long to fit in the database.
       def to_stored_data
         out = nil
 
@@ -139,13 +171,22 @@ module FlexColumns
       attr_reader :storage_string, :field_set, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length
       attr_reader :field_contents_by_field_name, :unknown_field_contents_by_key, :binary_header
 
+      # What's the current version number of our storage format? Because we only have a single version right now,
+      # this is also the only version we accept.
       FLEX_COLUMN_CURRENT_VERSION_NUMBER = 1
+
+      # What maximum fraction of the uncompressed size does a compressed string have to be before we use it in preference
+      # to the uncompressed string?
       MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION = 0.95
 
+      # Fires the appropriate +flex_columns+ notification with the given +name+, any +additional+ options in the payload,
+      # wrapped around the supplied block.
       def instrument(name, additional = { }, &block)
         ::ActiveSupport::Notifications.instrument("flex_columns.#{name}", data_source.notification_hash_for_flex_column_data_source.merge(additional), &block)
       end
 
+      # Given a +field_name+, ensures that that is, in fact, a valid field name, and that we have been deserialized.
+      # Used for implementing #[] and #[]=.
       def validate_and_deserialize_for_field(field_name)
         field = field_set.field_named(field_name)
         unless field
@@ -157,26 +198,32 @@ module FlexColumns
         field.field_name
       end
 
+      # Given a JSON string, returns the appropriate binary-storage string. This is the method that figures out
+      # whether we should compress the data or not and applies the binary header, if appropriate.
       def to_binary_storage(json_string)
         json_string = json_string.force_encoding(Encoding::BINARY) if json_string.respond_to?(:force_encoding)
         return json_string if (! binary_header)
 
         header = "FC:%02d," % FLEX_COLUMN_CURRENT_VERSION_NUMBER
 
-        if compress_if_over_length && json_string.length > compress_if_over_length
+        json_length = if json_string.respond_to?(:bytesize) then json_string.bytesize else json_string.length end
+
+        if compress_if_over_length && json_length > compress_if_over_length
           compressed = compress(json_string)
           compressed.force_encoding(Encoding::BINARY) if compressed.respond_to?(:force_encoding)
           compressed = header + "1," + compressed
           compressed.force_encoding(Encoding::BINARY) if compressed.respond_to?(:force_encoding)
         end
 
-        if compressed && compressed.length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_string.length)
+        compressed_length = if compressed.respond_to?(:bytesize) then compressed.bytesize else compressed.length end
+        if compressed && compressed_length < (MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION * json_length)
           compressed
         else
           header + "0," + json_string
         end
       end
 
+      # Compresses a string with GZip and returns its compressed representation.
       def compress(json_string)
         stream = StringIO.new("w")
         writer = Zlib::GzipWriter.new(stream)
@@ -186,6 +233,7 @@ module FlexColumns
         stream.string
       end
 
+      # Decompresses a GZipped string and returns the decompressed version.
       def decompress(data, raw_data)
         begin
           input = StringIO.new(data, "r")
@@ -196,6 +244,8 @@ module FlexColumns
         end
       end
 
+      # Given a storage string, returns a pure-JSON string. This involves looking for a header, and, if it's present,
+      # validating it and uncompressing the content (if compressed).
       def from_stored_data(storage_string)
         if storage_string =~ /^(FC:(\d+),(\d+),)/i
           prefix = $1
@@ -219,6 +269,7 @@ module FlexColumns
         end
       end
 
+      # Parses JSON. This just adds exception handling that tells you exactly where the failure was.
       def parse_json(json)
         out = begin
           JSON.parse(json)
@@ -233,6 +284,8 @@ module FlexColumns
         out
       end
 
+      # Given a hash returned by parsing JSON, stores the data away in either @field_contents_by_field_name or
+      # @unknown_field_contents_by_key, depending on whether the data matches one of our fields or not.
       def store_fields!(parsed_hash)
         @field_contents_by_field_name = { }
         @unknown_field_contents_by_key = { }
@@ -247,6 +300,8 @@ module FlexColumns
         end
       end
 
+      # If we haven't yet deserialized the JSON string, do it now, and store the data appropriately. This also
+      # checks for a validly-encoded string.
       def deserialize_if_necessary!
         unless field_contents_by_field_name
           raw_data = storage_string || ''
