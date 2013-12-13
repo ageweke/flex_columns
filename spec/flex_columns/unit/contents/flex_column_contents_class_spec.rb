@@ -295,6 +295,132 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
     end
   end
 
+  describe "#delegation_prefix" do
+    it "should not return a prefix if there isn't one" do
+      @klass.setup!(@model_class, :foo) { }
+      @klass.delegation_prefix.should_not be
+    end
+
+    it "should return a prefix if there is one" do
+      @klass.setup!(@model_class, :foo, :prefix => :baz) { }
+      @klass.delegation_prefix.should == "baz"
+    end
+  end
+
+  describe "#delegation_type" do
+    it "should return :public by default" do
+      @klass.setup!(@model_class, :foo) { }
+      @klass.delegation_type.should == :public
+    end
+
+    it "should return nil if none by default" do
+      @klass.setup!(@model_class, :foo, :delegate => false) { }
+      @klass.delegation_type.should == nil
+    end
+
+    it "should return :public if explicitly public" do
+      @klass.setup!(@model_class, :foo, :delegate => true) { }
+      @klass.delegation_type.should == :public
+    end
+
+    it "should return :private if private" do
+      @klass.setup!(@model_class, :foo, :delegate => :private) { }
+      @klass.delegation_type.should == :private
+    end
+  end
+
+  describe "#fields_are_private_by_default?" do
+    it "should be false by default" do
+      @klass.setup!(@model_class, :foo) { }
+      @klass.fields_are_private_by_default?.should_not be
+    end
+
+    it "should be true if specified" do
+      @klass.setup!(@model_class, :foo, :visibility => :private) { }
+      @klass.fields_are_private_by_default?.should be
+    end
+  end
+
+  describe "#sync_methods!" do
+    it "should create a dynamic-methods module and delegate to the field set" do
+      @klass.setup!(@model_class, :foo) { }
+
+      dmm = double("dmm")
+      expect(FlexColumns::Util::DynamicMethodsModule).to receive(:new).once.with(@klass, :FlexFieldsDynamicMethods).and_return(dmm)
+      expect(dmm).to receive(:remove_all_methods!).with().once
+
+      mc_dmm = double("mc_dmm")
+      allow(@model_class).to receive(:_flex_column_dynamic_methods_module).with().and_return(mc_dmm)
+      expect(@field_set).to receive(:add_delegated_methods!).once.with(dmm, mc_dmm, @model_class)
+
+      @klass.sync_methods!
+    end
+
+    it "should reuse the dynamic-methods module" do
+      @klass.setup!(@model_class, :foo) { }
+
+      dmm = double("dmm")
+      expect(FlexColumns::Util::DynamicMethodsModule).to receive(:new).once.with(@klass, :FlexFieldsDynamicMethods).and_return(dmm)
+      expect(dmm).to receive(:remove_all_methods!).with().once
+
+      mc_dmm = double("mc_dmm")
+      allow(@model_class).to receive(:_flex_column_dynamic_methods_module).with().and_return(mc_dmm)
+      expect(@field_set).to receive(:add_delegated_methods!).once.with(dmm, mc_dmm, @model_class)
+
+      @klass.sync_methods!
+
+      expect(dmm).to receive(:remove_all_methods!).with().once
+      expect(@field_set).to receive(:add_delegated_methods!).once.with(dmm, mc_dmm, @model_class)
+
+      @klass.sync_methods!
+    end
+
+    it "should add custom methods, with :visibility specified correctly" do
+      @klass.setup!(@model_class, :foo, :delegate => :private) do
+        def cm1(*args, &block)
+          "cm1!"
+        end
+      end
+
+      dmm = double("dmm")
+      expect(FlexColumns::Util::DynamicMethodsModule).to receive(:new).once.with(@klass, :FlexFieldsDynamicMethods).and_return(dmm)
+      expect(dmm).to receive(:remove_all_methods!).with().once
+
+      mc_dmm = Class.new
+      mc_dmm.class_eval do
+        class << self
+          public :define_method, :private
+        end
+      end
+
+      allow(@model_class).to receive(:_flex_column_dynamic_methods_module).with().and_return(mc_dmm)
+      expect(@field_set).to receive(:add_delegated_methods!).once.with(dmm, mc_dmm, @model_class)
+
+      allow(@model_class).to receive(:_flex_columns_safe_to_define_method?).with("cm1").and_return(true)
+
+      @klass.sync_methods!
+
+      fco = Object.new
+      class << fco
+        def cm1(*args, &block)
+          "cm1: #{args.join(", ")}: #{block.call(*args)}"
+        end
+      end
+
+      o = mc_dmm.new
+      expect(o).to receive(:_flex_column_object_for).with(:foo).and_return(fco)
+
+      lambda { o.cm1 }.should raise_error(NoMethodError)
+      result = o.send(:cm1, :foo, :bar) { |*args| args.join("X") }
+      result.should == "cm1: foo, bar: fooXbar"
+    end
+  end
+
+  it "should return the column name from #column_name" do
+    @klass.setup!(@model_class, :foo) { }
+    @klass.column_name.should == :foo
+  end
+
   context "with a set-up class" do
     before :each do
       @klass.setup!(@model_class, :foo) { }
@@ -369,6 +495,15 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
         instance.foo.should == :quux
       end
 
+      it "should not define a method that's not safe to define" do
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(false)
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false })
+
+        instance = @dmm.new
+        lambda { instance.send(:foo) }.should raise_error(NoMethodError)
+      end
+
       it "should define a method that falls back to build_<x>" do
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
 
@@ -441,6 +576,70 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
         result = instance.baz_cm1(:bar, :baz) { |*args| args.join("X") }
         result.should == "cm1 - bar, baz - barXbaz"
       end
+
+      it "should not add custom methods if they aren't safe" do
+        @klass = Class.new
+        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
+
+        defined_block = nil
+        cm_defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("cm1").and_return(false)
+
+        expect(@field_set).to receive(:include_fields_into).once.with(@dmm, :bar, @target_class, { })
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        instance = @dmm.new
+        instance.bar_return = @associated_object
+
+        instance.foo.should == :quux
+
+        lambda { instance.send(:cm1) }.should raise_error(NoMethodError)
+      end
+
+      it "should make custom methods private if requested" do
+        @klass = Class.new
+        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
+
+        defined_block = nil
+        cm_defined_block = nil
+
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_foo").and_return(true)
+        expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_cm1").and_return(true)
+
+        expect(@field_set).to receive(:include_fields_into).once.with(@dmm, :bar, @target_class, { :prefix => "baz" })
+
+        @klass.include_fields_into(@dmm, :bar, @target_class, { :prefix => "baz" })
+
+        expect(@associated_object).to receive(:foo).once.and_return(:quux)
+        instance = @dmm.new
+        instance.bar_return = @associated_object
+
+        instance.baz_foo.should == :quux
+
+        flex_object = Object.new
+        class << flex_object
+          def cm1(*args, &b)
+            "cm1 - #{args.join(", ")} - #{b.call(*args)}"
+          end
+        end
+
+        instance.set_flex_column_object_for!(:foo, flex_object)
+        lambda { instance.baz_cm1 }.should raise_error(NoMethodError)
+        result = instance.send(:baz_cm1, :bar, :baz) { |*args| args.join("X") }
+        result.should == "cm1 - bar, baz - barXbaz"
+      end
+    end
+
+    it "should delegate to the model instance on #object_for" do
+      model_instance = double("model_instance")
+      expect(model_instance).to receive(:_flex_column_object_for).once.with(:foo).and_return(:quux)
+      @klass.object_for(model_instance).should == :quux
     end
   end
 end

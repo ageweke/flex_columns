@@ -237,7 +237,7 @@ module FlexColumns
         cn = column_name
 
         custom_methods.each do |custom_method|
-          mn = custom_method
+          mn = custom_method.to_s
           mn = "#{options[:prefix]}_#{mn}" if options[:prefix]
 
           if target_class._flex_columns_safe_to_define_method?(mn)
