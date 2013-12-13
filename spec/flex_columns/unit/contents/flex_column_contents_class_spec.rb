@@ -321,14 +321,8 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
 
     describe "#include_fields_into" do
       before :each do
-        @dmm = double("dynamic_methods_module")
-        @target_class = double("target_class")
-
-        @associated_object = double("associated_object")
-
-        @block_context = Object.new
-
-        class << @block_context
+        @dmm = Class.new
+        @dmm.class_eval do
           def bar_return=(x)
             @bar_return = x
           end
@@ -354,74 +348,71 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
             @_flex_column_objects_for[x]
           end
 
-          def run_block(x, *args, &b)
-            x.call(*args, &b)
+          class << self
+            public :define_method, :private
           end
         end
+
+        @target_class = double("target_class")
+        @associated_object = double("associated_object")
       end
 
       it "should define a method that's safe to define, and nothing else, if :delegate => false" do
-        defined_block = nil
-
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
-        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
 
         @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false })
 
         expect(@associated_object).to receive(:foo).once.and_return(:quux)
-        @block_context.bar_return = @associated_object
+        instance = @dmm.new
+        instance.bar_return = @associated_object
 
-        @block_context.instance_eval(&defined_block)
+        instance.foo.should == :quux
       end
 
       it "should define a method that falls back to build_<x>" do
-        defined_block = nil
-
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
-        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
 
         @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false })
 
         expect(@associated_object).to receive(:foo).once.and_return(:quux)
-        @block_context.bar_return = nil
-        @block_context.build_bar_return = @associated_object
-
-        @block_context.instance_eval(&defined_block)
+        instance = @dmm.new
+        instance.build_bar_return = @associated_object
+        instance.foo.should == :quux
       end
 
       it "should define a method that's private, if requested" do
         defined_block = nil
 
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("foo").and_return(true)
-        expect(@dmm).to receive(:define_method).once.with("foo") { |&block| defined_block = block }
-        expect(@dmm).to receive(:private).with("foo").once
 
         @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false, :visibility => :private })
 
         expect(@associated_object).to receive(:foo).once.and_return(:quux)
-        @block_context.bar_return = @associated_object
+        instance = @dmm.new
+        instance.bar_return = @associated_object
 
-        @block_context.instance_eval(&defined_block)
+        lambda { instance.foo }.should raise_error(NoMethodError)
+        instance.send(:foo).should == :quux
       end
 
       it "should prefix the method name, if requested" do
         defined_block = nil
 
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_foo").and_return(true)
-        expect(@dmm).to receive(:define_method).once.with("baz_foo") { |&block| defined_block = block }
 
         @klass.include_fields_into(@dmm, :bar, @target_class, { :delegate => false, :prefix => "baz" })
 
         expect(@associated_object).to receive(:foo).once.and_return(:quux)
-        @block_context.bar_return = @associated_object
+        instance = @dmm.new
+        instance.bar_return = @associated_object
 
-        @block_context.instance_eval(&defined_block)
+        instance.baz_foo.should == :quux
       end
 
       it "should add custom methods, and prefix them if needed" do
         @klass = Class.new
         @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
-        @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}"; end }
+        @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
 
         defined_block = nil
         cm_defined_block = nil
@@ -429,22 +420,26 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_foo").and_return(true)
         expect(@target_class).to receive(:_flex_columns_safe_to_define_method?).with("baz_cm1").and_return(true)
 
-        expect(@dmm).to receive(:define_method).once.with("baz_foo") { |&block| defined_block = block }
-        expect(@dmm).to receive(:define_method).once.with("baz_cm1") { |&block| cm_defined_block = block }
-
         expect(@field_set).to receive(:include_fields_into).once.with(@dmm, :bar, @target_class, { :prefix => "baz" })
 
         @klass.include_fields_into(@dmm, :bar, @target_class, { :prefix => "baz" })
 
         expect(@associated_object).to receive(:foo).once.and_return(:quux)
-        @block_context.bar_return = @associated_object
-        @block_context.instance_eval(&defined_block)
+        instance = @dmm.new
+        instance.bar_return = @associated_object
 
-        flex_object = double("flex_object")
-        expect(flex_object).to receive(:cm1).once.with(:bar, :baz).and_return(:quux)
+        instance.baz_foo.should == :quux
 
-        @block_context.set_flex_column_object_for!(:foo, flex_object)
-        @block_context.instance_exec(:bar, :baz, &cm_defined_block)
+        flex_object = Object.new
+        class << flex_object
+          def cm1(*args, &b)
+            "cm1 - #{args.join(", ")} - #{b.call(*args)}"
+          end
+        end
+
+        instance.set_flex_column_object_for!(:foo, flex_object)
+        result = instance.baz_cm1(:bar, :baz) { |*args| args.join("X") }
+        result.should == "cm1 - bar, baz - barXbaz"
       end
     end
   end
