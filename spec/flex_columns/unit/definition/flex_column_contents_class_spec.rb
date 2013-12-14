@@ -1,13 +1,13 @@
 require 'flex_columns'
-require 'flex_columns/contents/flex_column_contents_class'
+require 'flex_columns/definition/flex_column_contents_class'
 require 'flex_columns/helpers/exception_helpers'
 
-describe FlexColumns::Contents::FlexColumnContentsClass do
+describe FlexColumns::Definition::FlexColumnContentsClass do
   include FlexColumns::Helpers::ExceptionHelpers
 
   before :each do
     @klass = Class.new
-    @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+    @klass.send(:extend, FlexColumns::Definition::FlexColumnContentsClass)
 
     @model_class = double("model_class")
     allow(@model_class).to receive(:kind_of?).with(Class).and_return(true)
@@ -546,7 +546,7 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
 
       it "should add custom methods, and prefix them if needed" do
         @klass = Class.new
-        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.send(:extend, FlexColumns::Definition::FlexColumnContentsClass)
         @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
 
         defined_block = nil
@@ -579,7 +579,7 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
 
       it "should not add custom methods if they aren't safe" do
         @klass = Class.new
-        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.send(:extend, FlexColumns::Definition::FlexColumnContentsClass)
         @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
 
         defined_block = nil
@@ -603,7 +603,7 @@ describe FlexColumns::Contents::FlexColumnContentsClass do
 
       it "should make custom methods private if requested" do
         @klass = Class.new
-        @klass.send(:extend, FlexColumns::Contents::FlexColumnContentsClass)
+        @klass.send(:extend, FlexColumns::Definition::FlexColumnContentsClass)
         @klass.setup!(@model_class, :foo) { def cm1(*args); "cm1!: #{args.join(", ")}: #{yield *args}"; end }
 
         defined_block = nil

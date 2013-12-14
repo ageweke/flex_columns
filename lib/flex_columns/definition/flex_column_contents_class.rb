@@ -1,5 +1,5 @@
 module FlexColumns
-  module Contents
+  module Definition
     # When you declare a flex column, we actually generate a brand-new Class for that column; instances of that flex
     # column are instances of this new Class.
     #

@@ -26,7 +26,7 @@ module FlexColumns
       attr_reader :field_name
 
       # Creates a new instance. +flex_column_class+ is the Class we created for this flex column -- _i.e._, a class
-      # that has said <tt>extend FlexColumns::Contents::FlexColumnContentsClass</tt>. +field_name+ is the name of the
+      # that has said <tt>extend FlexColumns::Definition::FlexColumnContentsClass</tt>. +field_name+ is the name of the
       # field. +additional_arguments+ is an Array containing any additional arguments that were passed -- right now,
       # that can only be the type of the field (_e.g._, +:integer+, etc.). +options+ is any options that were passed;
       # this can contain:

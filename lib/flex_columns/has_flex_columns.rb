@@ -1,7 +1,7 @@
 require 'active_record'
 require 'active_support/concern'
 require 'active_support/core_ext'
-require 'flex_columns/definition/flex_column_contents_base'
+require 'flex_columns/contents/flex_column_contents_base'
 
 module FlexColumns
   module HasFlexColumns
@@ -83,7 +83,7 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
       def flex_column(flex_column_name, options = { }, &block)
         flex_column_name = _flex_column_normalize_name(flex_column_name)
 
-        new_class = Class.new(FlexColumns::Definition::FlexColumnContentsBase)
+        new_class = Class.new(FlexColumns::Contents::FlexColumnContentsBase)
         new_class.setup!(self, flex_column_name, options, &block)
 
         _flex_column_classes.delete_if { |fcc| fcc.column_name == flex_column_name }

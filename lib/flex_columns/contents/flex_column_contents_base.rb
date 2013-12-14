@@ -3,14 +3,14 @@ require 'flex_columns/errors'
 require 'flex_columns/util/dynamic_methods_module'
 require 'flex_columns/contents/column_data'
 require 'flex_columns/definition/field_set'
-require 'flex_columns/contents/flex_column_contents_class'
+require 'flex_columns/definition/flex_column_contents_class'
 
 module FlexColumns
-  module Definition
+  module Contents
     class FlexColumnContentsBase
       include ActiveModel::Validations
 
-      extend FlexColumns::Contents::FlexColumnContentsClass
+      extend FlexColumns::Definition::FlexColumnContentsClass
 
       def initialize(input)
         raw_string = nil
