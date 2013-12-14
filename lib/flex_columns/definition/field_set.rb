@@ -19,7 +19,7 @@ module FlexColumns
         field = FlexColumns::Definition::FieldDefinition.new(@flex_column_class, name, args, options)
         same_json_storage_name_field = fields_by_json_storage_names[field.json_storage_name]
         if same_json_storage_name_field && same_json_storage_name_field.field_name != field.field_name
-          raise FlexColumns::Errors::ConflictingJsonStorageNameError.new(model_class, column_name, name, same_json_storage_name_field.field_name, field.json_storage_name)
+          raise FlexColumns::Errors::ConflictingJsonStorageNameError.new(@flex_column_class.model_class, @flex_column_class.column_name, name, same_json_storage_name_field.field_name, field.json_storage_name)
         end
 
         fields[name] = field

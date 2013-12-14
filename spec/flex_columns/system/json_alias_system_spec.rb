@@ -1,8 +1,10 @@
 require 'flex_columns'
 require 'flex_columns/helpers/system_helpers'
+require 'flex_columns/helpers/exception_helpers'
 
 describe "FlexColumns JSON aliasing" do
   include FlexColumns::Helpers::SystemHelpers
+  include FlexColumns::Helpers::ExceptionHelpers
 
   before :each do
     @dh = FlexColumns::Helpers::DatabaseHelper.new
@@ -59,6 +61,56 @@ describe "FlexColumns JSON aliasing" do
 
     user.user_attributes.valid?.should_not be
     user.user_attributes.errors.keys.should == [ :wants_email ]
+  end
+
+  it "should prohibit conflicting JSON names" do
+    e = capture_exception(FlexColumns::Errors::ConflictingJsonStorageNameError) do
+      define_model_class(:User, 'flexcols_spec_users') { }
+
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes, :unknown_fields => :delete do
+          field :wants_email, :json => :aaa
+          field :language_setting, :json => :aaa
+        end
+      end
+    end
+
+    e.model_class.should == ::User
+    e.column_name.should == :user_attributes
+    e.new_field_name.should == :language_setting
+    e.existing_field_name.should == :wants_email
+    e.json_storage_name.should == :aaa
+
+    e.message.should match(/User/i)
+    e.message.should match(/user_attributes/i)
+    e.message.should match(/language_setting/i)
+    e.message.should match(/wants_email/i)
+    e.message.should match(/aaa/i)
+  end
+
+  it "should prohibit JSON names from conflicting with non-aliased fields" do
+    e = capture_exception(FlexColumns::Errors::ConflictingJsonStorageNameError) do
+      define_model_class(:User, 'flexcols_spec_users') { }
+
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :user_attributes, :unknown_fields => :delete do
+          field :wants_email
+          field :language_setting, :json => :wants_email
+        end
+      end
+    end
+
+    e.model_class.should == ::User
+    e.column_name.should == :user_attributes
+    e.new_field_name.should == :language_setting
+    e.existing_field_name.should == :wants_email
+    e.json_storage_name.should == :wants_email
+
+    e.message.should match(/User/i)
+    e.message.should match(/user_attributes/i)
+    e.message.should match(/language_setting/i)
+    e.message.should match(/wants_email/i)
+    e.message.should match(/wants_email/i)
   end
 
   it "should treat field names present in the JSON hash as unknown fields, and delete them if asked to" do
