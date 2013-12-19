@@ -120,7 +120,7 @@ module FlexColumns
       # Does nothing, other than making sure the JSON has been deserialized. This therefore has the effect both of
       # ensuring that the stored data (if any) is valid, and also will remove any unknown keys (on save) if
       # +:unknown_fields+ was set to +:delete+.
-      def check!
+      def touch!
         deserialize_if_necessary!
       end
 

@@ -90,7 +90,7 @@ describe "FlexColumns unknown fields" do
     user_bd_again.some_unknown_attribute.should == 'bongo'
 
     user = ::User.find(@user_bd.id)
-    user.user_attributes.check!
+    user.user_attributes.touch!
     user.save!
 
     user_bd_again = ::UserBackdoor.find(@user_bd.id)

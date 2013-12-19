@@ -108,7 +108,7 @@ module FlexColumns
       end
 
       # "Touches"
-      def check!
+      def touch!
         column_data.check!
       end
 

@@ -119,10 +119,10 @@ describe FlexColumns::Contents::ColumnData do
       @instance.keys.sort_by(&:to_s).should == [ :foo, :baz ].sort_by(&:to_s)
     end
 
-    it "should deserialize, if needed, on check!" do
+    it "should deserialize, if needed, on touch!" do
       instance = new_with_string("---unparseable JSON---")
 
-      lambda { instance.check! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
+      lambda { instance.touch! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
     end
 
     it "should tell you if it's deserialized or not with #touched?" do
