@@ -1,4 +1,4 @@
-require 'flex_columns/utilities'
+require 'flex_columns/util/string_utils'
 
 module FlexColumns
   module Errors
@@ -59,7 +59,7 @@ database's limit for that column is #{limit} characters.
 
 The JSON we produced was:
 
-  #{FlexColumns::Utilities.abbreviated_string(json_string)}})
+  #{FlexColumns::Util::StringUtils.abbreviated_string(json_string)}})
       end
     end
 
@@ -78,7 +78,7 @@ The JSON we produced was:
       def create_message
         out = %{When parsing the JSON in #{data_source.describe_flex_column_data_source}, which is:
 
-#{FlexColumns::Utilities.abbreviated_string(raw_string)}
+#{FlexColumns::Util::StringUtils.abbreviated_string(raw_string)}
 
 }
         out += additional_message if additional_message
@@ -186,7 +186,7 @@ Some of the invalid chars are (in hex):
       def create_message
         super + %{, the JSON returned wasn't a Hash, but rather #{returned_data.class.name}:
 
-#{FlexColumns::Utilities.abbreviated_string(returned_data.inspect)}}
+#{FlexColumns::Util::StringUtils.abbreviated_string(returned_data.inspect)}}
       end
     end
   end
