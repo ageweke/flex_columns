@@ -78,6 +78,7 @@ module FlexColumns
 
         @field_contents_by_field_name = nil
         @unknown_field_contents_by_key = nil
+        @touched = false
       end
 
       # Returns the data for the given +field_name+. Raises FlexColumns::Errors::NoSuchFieldError if there is no field
@@ -104,6 +105,10 @@ module FlexColumns
         # and that's OK.)
         new_value = new_value.to_s if new_value.kind_of?(Symbol)
 
+        old_value = field_contents_by_field_name[field_name]
+
+        @touched = true if old_value != new_value
+
         # We deliberately delete from the hash anything that's being set to +nil+; this is so that we don't end up just
         # binding keys to +nil+, and returning them in #keys, etc. (Yes, this means that you can't distinguish a key
         # explicitly set to +nil+ from a key that's not present; this is different from Ruby's semantics for a Hash,
@@ -127,11 +132,12 @@ module FlexColumns
       # +:unknown_fields+ was set to +:delete+.
       def touch!
         deserialize_if_necessary!
+        @touched = true
       end
 
-      # Has this object been deserialized for any reason?
+      # Has this object been modified in any way?
       def touched?
-        !! field_contents_by_field_name
+        !! @touched
       end
 
       # Returns a String with the current contents of this object as JSON. (This will deserialize from JSON, if it

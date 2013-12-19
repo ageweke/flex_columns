@@ -145,10 +145,11 @@ module FlexColumns
       end
 
       # Called via the ActiveRecord::Base#before_save hook that gets installed on the enclosing model instance. This is
-      # what actually serializes the column data and sets it on the
+      # what actually serializes the column data and sets it on the ActiveRecord model when it's being saved.
       def before_save!
         return unless model_instance
 
+        # We set the data only if someone has actually accessed it, or if
         if column_data.touched? || ((! column.null) && model_instance[column_name] == nil)
           model_instance[column_name] = column_data.to_stored_data
         end

@@ -120,16 +120,30 @@ describe FlexColumns::Contents::ColumnData do
       @instance.keys.sort_by(&:to_s).should == [ :foo, :baz ].sort_by(&:to_s)
     end
 
-    it "should deserialize, if needed, on touch!" do
-      instance = new_with_string("---unparseable JSON---")
+    describe "touching" do
+      it "should deserialize, if needed, on touch!" do
+        instance = new_with_string("---unparseable JSON---")
 
-      lambda { instance.touch! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
-    end
+        lambda { instance.touch! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
+      end
 
-    it "should tell you if it's deserialized or not with #touched?" do
-      @instance.touched?.should_not be
-      @instance[:foo]
-      @instance.touched?.should be
+      it "should not be touched if you simply read from it" do
+        @instance.touched?.should_not be
+        @instance[:foo]
+        @instance.touched?.should_not be
+      end
+
+      it "should not be touched if you set a field to the same thing" do
+        @instance.touched?.should_not be
+        @instance[:foo] = 'bar'
+        @instance.touched?.should_not be
+      end
+
+      it "should be touched if you set a field to something different" do
+        @instance.touched?.should_not be
+        @instance[:foo] = 'baz'
+        @instance.touched?.should be
+      end
     end
 
     it "should return JSON data with #to_json" do

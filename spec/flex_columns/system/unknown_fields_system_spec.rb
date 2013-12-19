@@ -75,6 +75,32 @@ describe "FlexColumns unknown fields" do
     user_bd_again.some_unknown_attribute.should be_nil
   end
 
+  it "should not delete unknown fields if asked to, but we only read from the model" do
+    @user_bd.wants_email = 'foo'
+    @user_bd.save!
+
+    define_model_class(:User, 'flexcols_spec_users') do
+      flex_column :user_attributes, :unknown_fields => :delete do
+        field :wants_email
+      end
+    end
+
+    user = ::User.find(@user_bd.id)
+    user.name.should == 'User 1'
+    user.wants_email.should == 'foo'
+
+    user.respond_to?(:some_unknown_attribute).should_not be
+    lambda { user.send(:some_unknown_attribute) }.should raise_error(NoMethodError)
+    lambda { user.user_attributes[:some_unknown_attribute] }.should raise_error(FlexColumns::Errors::NoSuchFieldError)
+    lambda { user.user_attributes[:some_unknown_attribute] = 123 }.should raise_error(FlexColumns::Errors::NoSuchFieldError)
+
+    user.save!
+
+    user_bd_again = ::UserBackdoor.find(@user_bd.id)
+    user_bd_again.wants_email.should == 'foo'
+    user_bd_again.some_unknown_attribute.should == 'bongo'
+  end
+
   it "should have a method that explicitly will purge unknown methods, even if deserialization hasn't happened for any other reason, but not before then" do
     define_model_class(:User, 'flexcols_spec_users') do
       flex_column :user_attributes, :unknown_fields => :delete do

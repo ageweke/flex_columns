@@ -132,6 +132,7 @@ describe "FlexColumns JSON aliasing" do
     user_again = ::User.find(user.id)
     user_again.wants_email.should == 456
     user_again.language_setting.should be_nil
+    user_again.user_attributes.touch!
     user_again.save!
 
     user_bd = ::UserBackdoor.find(user.id)
