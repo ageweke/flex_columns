@@ -366,6 +366,14 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     end
   end
 
+  describe "#all_field_names" do
+    it "should delegate to the field set" do
+      @klass.setup!(@model_class, :foo) { }
+      expect(@field_set).to receive(:all_field_names).once.with().and_return([ :a, :x, :z, :q ])
+      @klass.all_field_names.should == [ :a, :x, :z, :q ]
+    end
+  end
+
   describe "#sync_methods!" do
     it "should create a dynamic-methods module and delegate to the field set" do
       @klass.setup!(@model_class, :foo) { }

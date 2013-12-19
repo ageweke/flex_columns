@@ -133,6 +133,11 @@ module FlexColumns
         column.name.to_sym
       end
 
+      # What are the names of all fields defined on this flex column?
+      def all_field_names
+        field_set.all_field_names
+      end
+
       # Are fields in this flex column private by default?
       def fields_are_private_by_default?
         ensure_setup!
