@@ -36,21 +36,22 @@ module FlexColumns
       #   ActiveSupport::Notifications calls made, so that when things go wrong or you're doing performance work, you
       #   can understand what row in what table contains incorrect data or data that is making things slow.
       def initialize(input)
-        raw_string = nil
+        storage_string = nil
 
         if input.kind_of?(String)
           @model_instance = nil
-          raw_string = input
+          storage_string = input
+          @source_string = input
         elsif (! input)
           @model_instance = nil
+          storage_string = nil
         elsif input.class.equal?(self.class.model_class)
           @model_instance = input
+          storage_string = @model_instance[self.class.column_name]
         else
           raise ArgumentError, %{You can create a #{self.class.name} from a String, nil, or #{self.class.model_class.name} (#{self.class.model_class.object_id}),
   not #{input.inspect} (#{input.object_id}).}
         end
-
-        storage_string = raw_string || model_instance[self.class.column_name]
 
         # Creates an instance of FlexColumns::Contents::ColumnData, which is the thing that does most of the actual
         # work with the underlying data for us.
@@ -66,7 +67,7 @@ module FlexColumns
           out << " ID #{model_instance.id}" if model_instance.id
           out << ", column #{self.class.column_name.inspect}"
         else
-          out << "(data passed in by client, for #{self.class.model_class.name}, column #{self.class.column_name.inspect})"
+          "(data passed in by client, for #{self.class.model_class.name}, column #{self.class.column_name.inspect})"
         end
       end
 
@@ -83,7 +84,7 @@ module FlexColumns
         if model_instance
           out[:model] = model_instance
         else
-          out[:source] = :passed_string
+          out[:source] = @source_string
         end
 
         out
@@ -166,18 +167,12 @@ module FlexColumns
       private
       attr_reader :model_instance, :column_data
 
-      def errors_object
-        if model_instance
-          model_instance.errors
-        else
-          @errors_object ||= ActiveModel::Errors.new(self)
-        end
-      end
-
+      # What's the name of the flex column itself?
       def column_name
         self.class.column_name
       end
 
+      # What's the ActiveRecord ColumnDefinition object for this flex column?
       def column
         self.class.column
       end
