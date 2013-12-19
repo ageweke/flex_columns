@@ -1,13 +1,14 @@
 module FlexColumns
   module Definition
     # When you declare a flex column, we actually generate a brand-new Class for that column; instances of that flex
-    # column are instances of this new Class.
+    # column are instances of this new Class. This class acquires functionality from two places: FlexColumnContentsBase,
+    # which defines its instance methods, and FlexColumnContentsClass, which defines its class methods. (While
+    # FlexColumnContentsBase is an actual Class, FlexColumnContentsClass is a Module that FlexColumnContentsBase
+    # +extend+s. Both could be combined, but, simply for readability and maintainability, it was better to make them
+    # separate.)
     #
-    # This module defines that Class's class methods -- that is, when we generate that class, we call
-    # <tt>extend FlexColumnContentsClass</tt>.
-    #
-    # The block passed to the +flex_column+ declaration is evaluated in the context of that class -- so this module is
-    # what implements the method +field+, and so on.
+    # This Module therefore defines the methods that are available on a flex-column class -- directly from inside
+    # the block passed to +flex_column+, for example.
     module FlexColumnContentsClass
       # By default, how long does the generated JSON have to be before we'll try compressing it?
       DEFAULT_MAX_JSON_LENGTH_BEFORE_COMPRESSION = 200

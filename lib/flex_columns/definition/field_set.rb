@@ -3,18 +3,18 @@ require 'flex_columns/definition/field_definition'
 
 module FlexColumns
   module Definition
-    # A FieldSet keeps track of a set of FieldDefinition objects for a particular FlexColumnContentsClass. It's largely
+    # A FieldSet keeps track of a set of FieldDefinition objects for a particular flex-column contents calss. It's largely
     # a wrapper around this set that allows you to add fields (via #field), find fields based on their name or JSON
     # storage name, return all field names, and invoke certain delegation methods across all fields.
     class FieldSet
-      # Create a new instance for the given class that has <tt>extend FlexColumnContentsClass</tt>.
+      # Create a new instance for the given class that inherits from FlexColumnContentsBase.
       def initialize(flex_column_class)
         @flex_column_class = flex_column_class
         @fields = { }
         @fields_by_json_storage_names = { }
       end
 
-      # Defines a new field. This is passed through directly by the FlexColumnContentsClass -- its semantics are therefore
+      # Defines a new field. This is passed through directly by the flex-column contents class -- its semantics are therefore
       # exactly what the client sees. +name+ is the name of the new field, and +args+ receives any additional arguments
       # (type, options, etc.).
       def field(name, *args)
@@ -42,7 +42,7 @@ module FlexColumns
       end
 
       # Adds all delegated methods to both the +column_dynamic_methods_module+, which should be included into the
-      # FlexColumnContentsClass, and the +model_dynamic_methods_module+, which should be included into the
+      # flex-column contents class, and the +model_dynamic_methods_module+, which should be included into the
       # +model_class+. The +model_class+ itself is also passed here; this is used in the FieldDefinition just to make
       # sure we don't define methods that collide with column names or other method names on the model class itself.
       def add_delegated_methods!(column_dynamic_methods_module, model_dynamic_methods_module, model_class)
