@@ -1,10 +1,19 @@
 require 'flex_columns/util/string_utils'
 
 module FlexColumns
+  # This module contains definitions for all errors thrown by +flex_columns+. One of the goals of +flex_columns+ is to,
+  # when an error occurs, raise an exception that has a great amount of detail about what happened -- in general, it
+  # should be enough to know exactly where any invalid or problematic data came from, such as the row in the database
+  # containing bad data, invalidly-encoded characters, or similar.
   module Errors
+    # FlexColumns::Errors::Base: all +flex_columns+ errors inherit from this class.
     class Base < StandardError; end
 
+
+    # FlexColumns::Errors::FieldError: all errors having to do with field definition inherit from this class.
     class FieldError < Base; end
+
+    # Raised when you try to read or write data for a field that isn't defined.
     class NoSuchFieldError < FieldError
       attr_reader :data_source, :field_name, :all_field_names
 
@@ -20,6 +29,8 @@ However, there is no such field defined on that flex column; the defined fields 
       end
     end
 
+    # Raised when you try to define a field with the same JSON storage name, but a different field name, as a
+    # previously-defined field.
     class ConflictingJsonStorageNameError < FieldError
       attr_reader :model_class, :column_name, :new_field_name, :existing_field_name, :json_storage_name
 
@@ -38,12 +49,26 @@ These fields would conflict in the JSON store, and thus this is not allowed.})
       end
     end
 
+
+    # FlexColumns::Errors::DefinitionError: all errors having to do with definition of a flex column itself (not fields,
+    # but the whole column) inherit from this class.
     class DefinitionError < Base; end
+
+    # Raised when you try to define a flex_column for a column that doesn't exist in the database (at least according
+    # to the model class).
     class NoSuchColumnError < DefinitionError; end
+
+    # Raised when you try to define a flex_column for a column that isn't of a valid type for that -- for example, an
+    # integer or a boolean column.
     class InvalidColumnTypeError < DefinitionError; end
 
+
+    # FlexColumns::Errors::DataError: all errors having to do with the data present in a flex column in the database
+    # inherit from this class.
     class DataError < Base; end
 
+    # Raised when you try to store enough data in a flex column that the generated JSON is too long to fit into the
+    # column.
     class JsonTooLongError < DataError
       attr_reader :data_source, :limit, :json_string
 
@@ -63,6 +88,7 @@ The JSON we produced was:
       end
     end
 
+    # Raised when the JSON stored in the database is a valid Ruby String, but fails parsing (via JSON#parse).
     class InvalidDataInDatabaseError < DataError
       attr_reader :data_source, :raw_string, :additional_message
 
@@ -86,6 +112,7 @@ The JSON we produced was:
       end
     end
 
+    # Raised when the data in the database appears to be GZip'ed, but we can't decompress that data.
     class InvalidCompressedDataInDatabaseError < InvalidDataInDatabaseError
       attr_reader :source_exception
 
