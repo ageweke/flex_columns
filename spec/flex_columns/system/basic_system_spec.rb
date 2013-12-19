@@ -60,7 +60,7 @@ describe "FlexColumns basic operations" do
       contents['wants_email'].should == 'sometimes'
     end
 
-    it "should not modify that JSON if you don't write to it" do
+    it "should not modify that JSON if you don't write to it with a different value, but should if you touch it" do
       define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
 
       weirdly_spaced_json = '   {        "wants_email"  : "boop"    } '
@@ -73,11 +73,19 @@ describe "FlexColumns basic operations" do
       user = ::User.find(user_bd.id)
       user.name.should == 'User 1'
       user.wants_email.should == 'boop'
+      user.wants_email = 'boop'
       user.save!
 
       user_bd_again = ::UserBackdoor.find(user_bd.id)
       user_bd_again.name.should == 'User 1'
       user_bd_again.user_attributes.should == weirdly_spaced_json
+
+      user.user_attributes.touch!
+      user.save!
+
+      user_bd_again = ::UserBackdoor.find(user_bd.id)
+      user_bd_again.name.should == 'User 1'
+      user_bd_again.user_attributes.should == '{"wants_email":"boop"}'
     end
 
     it "should provide access to attributes as methods" do
