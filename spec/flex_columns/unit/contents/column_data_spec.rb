@@ -50,7 +50,7 @@ describe FlexColumns::Contents::ColumnData do
 
   def new_with_string(s, options = { })
     effective_options = {
-      :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true
+      :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true, :null => true
       }.merge(options)
     klass.new(@field_set, effective_options)
   end
@@ -70,6 +70,7 @@ describe FlexColumns::Contents::ColumnData do
     lambda { klass.new(@field_set, valid_options.merge(:length_limit => 3)) }.should raise_error(ArgumentError)
     lambda { klass.new(@field_set, valid_options.merge(:compress_if_over_length => 3.5)) }.should raise_error(ArgumentError)
     lambda { klass.new(@field_set, valid_options.merge(:compress_if_over_length => 'foo')) }.should raise_error(ArgumentError)
+    lambda { klass.new(@field_set, valid_options.merge(:null => 'foo')) }.should raise_error(ArgumentError)
   end
 
   context "with a valid instance" do
@@ -148,6 +149,30 @@ describe FlexColumns::Contents::ColumnData do
         parsed['foo'].should == 'bar'
         parsed['bar'].should == 123
         parsed['baz'].should == 'quux'
+      end
+
+      describe "with a text column" do
+        it "should return nil if there's no data and the column allows it" do
+          @instance = new_with_string("{}")
+          @instance.to_stored_data.should == nil
+        end
+
+        it "should return the empty string if there's no data and the column does not allow nulls" do
+          @instance = new_with_string("{}", :null => false)
+          @instance.to_stored_data.should == ""
+        end
+      end
+
+      describe "with a binary column" do
+        it "should return nil if there's no data and the column allows it" do
+          @instance = new_with_string("{}", :storage => :binary)
+          @instance.to_stored_data.should == nil
+        end
+
+        it "should return the empty string if there's no data and the column does not allow nulls" do
+          @instance = new_with_string("{}", :storage => :binary, :null => false)
+          @instance.to_stored_data.should == ""
+        end
       end
 
       it "should return JSON from a binary column with :header => false" do
@@ -439,7 +464,8 @@ describe FlexColumns::Contents::ColumnData do
 
         json_string = { :foo => 'aaa', :bar => 'bbb' }.to_json
         instance = klass.new(field_set, :storage_string => json_string, :data_source => @data_source,
-          :unknown_fields => :preserve, :storage => :text, :storage_string => json_string, :binary_header => true)
+          :unknown_fields => :preserve, :storage => :text, :storage_string => json_string, :binary_header => true,
+          :null => true)
 
         instance[:foo].should == 'bbb'
         lambda { instance[:bar] }.should raise_error(FlexColumns::Errors::NoSuchFieldError)

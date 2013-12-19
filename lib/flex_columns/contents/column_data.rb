@@ -48,9 +48,12 @@ module FlexColumns
       # [:binary_header] Must be +true+ or +false+. If +false+, then, even if +:storage+ is +:binary+, no header will be
       #                  written to the binary column. (As a consequence, compression will also be disabled, since
       #                  compression requires the header.)
+      # [:null] Must be +true+ or +false+. If +false+, assumes the underlying column in the database is defined as
+      #         non-NULL (although this is not recommended), and therefore will set an empty string ("") on the column
+      #         if there's no data in it, rather than SQL +NULL+.
       def initialize(field_set, options = { })
         options.assert_valid_keys(:storage_string, :data_source, :unknown_fields, :length_limit, :storage,
-          :compress_if_over_length, :binary_header)
+          :compress_if_over_length, :binary_header, :null)
 
         @storage_string = options[:storage_string]
         @field_set = field_set
@@ -60,6 +63,7 @@ module FlexColumns
         @storage = options[:storage]
         @compress_if_over_length = options[:compress_if_over_length]
         @binary_header = options[:binary_header]
+        @null = options[:null]
 
         raise ArgumentError, "Invalid JSON string: #{storage_string.inspect}" if storage_string && (! storage_string.kind_of?(String))
         raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::Definition::FieldSet)
@@ -69,6 +73,7 @@ module FlexColumns
         raise ArgumentError, "Invalid value for :storage: #{storage.inspect}" unless [ :binary, :text ].include?(storage)
         raise ArgumentError, "Invalid value for :compress_if_over_length: #{compress_if_over_length.inspect}" if compress_if_over_length && (! compress_if_over_length.kind_of?(Integer))
         raise ArgumentError, "Invalid value for :binary_header: #{binary_header.inspect}" unless [ true, false ].include?(binary_header)
+        raise ArgumentError, "Invalid value for :null: #{null.inspect}" unless [ true, false ].include?(null)
 
 
         @field_contents_by_field_name = nil
@@ -157,7 +162,12 @@ module FlexColumns
 
         instrument("serialize") do
           out = to_json
-          out = to_binary_storage(out) if storage == :binary
+
+          if out =~ /^\s*\{\s*\}\s*$/i
+            out = @null ? nil : ""
+          else
+            out = to_binary_storage(out) if storage == :binary
+          end
         end
 
         if length_limit && out.length > length_limit
@@ -169,7 +179,7 @@ module FlexColumns
 
       private
       attr_reader :storage_string, :field_set, :data_source, :unknown_fields, :length_limit, :storage, :compress_if_over_length
-      attr_reader :field_contents_by_field_name, :unknown_field_contents_by_key, :binary_header
+      attr_reader :field_contents_by_field_name, :unknown_field_contents_by_key, :binary_header, :null
 
       # What's the current version number of our storage format? Because we only have a single version right now,
       # this is also the only version we accept.

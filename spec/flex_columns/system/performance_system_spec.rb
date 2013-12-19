@@ -111,4 +111,99 @@ describe "FlexColumns performance" do
 
     @deserializations.length.should == 1
   end
+
+  context "with NULLable and non-NULLable text and binary columns" do
+    def check_text_column_data(text_data, key, value)
+      parsed = JSON.parse(text_data)
+      parsed.keys.should == [ key.to_s ]
+      parsed[key.to_s].should == value
+    end
+
+    def check_binary_column_data(binary_data, key, value)
+      if binary_data =~ /^FC:01,0,/
+        without_header = binary_data[8..-1]
+        parsed = JSON.parse(without_header)
+        parsed.keys.should == [ key.to_s ]
+        parsed[key.to_s].should == value
+      end
+    end
+
+    before :each do
+      migrate do
+        drop_table :flexcols_spec_users rescue nil
+        create_table :flexcols_spec_users do |t|
+          t.string :name, :null => false
+          t.text :text_attrs_nonnull, :null => false
+          t.text :text_attrs_null
+          t.binary :binary_attrs_nonnull, :null => false
+          t.binary :binary_attrs_null
+        end
+      end
+
+      ::User.reset_column_information
+
+      define_model_class(:User, 'flexcols_spec_users') do
+        flex_column :text_attrs_nonnull do
+          field :aaa
+        end
+        flex_column :text_attrs_null do
+          field :bbb
+        end
+        flex_column :binary_attrs_nonnull do
+          field :ccc
+        end
+        flex_column :binary_attrs_null do
+          field :ddd
+        end
+      end
+
+      define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
+
+      ::UserBackdoor.reset_column_information
+    end
+
+    it "should be smart enough to store an empty JSON string to the database, if necessary, if the column is non-NULL" do
+      my_user = ::User.new
+      my_user.name = 'User 1'
+      my_user.save!
+
+      user_bd = ::UserBackdoor.find(my_user.id)
+      user_bd.name.should == 'User 1'
+      user_bd.text_attrs_nonnull.should == ""
+      user_bd.text_attrs_null.should == nil
+      user_bd.binary_attrs_nonnull.should == ""
+      user_bd.binary_attrs_null.should == nil
+    end
+
+    it "should store NULL or the empty string in the database, as appropriate, if there's no data left any more" do
+      my_user = ::User.new
+      my_user.name = 'User 1'
+      my_user.aaa = 'aaa1'
+      my_user.bbb = 'bbb1'
+      my_user.ccc = 'ccc1'
+      my_user.ddd = 'ddd1'
+      my_user.save!
+
+      user_bd = ::UserBackdoor.find(my_user.id)
+      user_bd.name.should == 'User 1'
+      check_text_column_data(user_bd.text_attrs_nonnull, 'aaa', 'aaa1')
+      check_text_column_data(user_bd.text_attrs_null, 'bbb', 'bbb1')
+      check_binary_column_data(user_bd.binary_attrs_nonnull, 'ccc', 'ccc1')
+      check_binary_column_data(user_bd.binary_attrs_null, 'ddd', 'ddd1')
+
+      user_again = ::User.find(my_user.id)
+      user_again.aaa = nil
+      user_again.bbb = nil
+      user_again.ccc = nil
+      user_again.ddd = nil
+      user_again.save!
+
+      user_bd_again = ::UserBackdoor.find(my_user.id)
+      user_bd_again.name.should == 'User 1'
+      user_bd_again.text_attrs_nonnull.should == ""
+      user_bd_again.text_attrs_null.should == nil
+      user_bd_again.binary_attrs_nonnull.should == ""
+      user_bd_again.binary_attrs_null.should == nil
+    end
+  end
 end

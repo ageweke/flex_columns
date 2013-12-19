@@ -18,24 +18,28 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     allow(@column_foo).to receive(:name).with().and_return(:foo)
     allow(@column_foo).to receive(:type).with().and_return(:text)
     allow(@column_foo).to receive(:text?).with().and_return(true)
+    allow(@column_foo).to receive(:null).with().and_return(true)
     allow(@column_foo).to receive(:sql_type).with().and_return('clob')
 
     @column_bar = double("column_bar")
     allow(@column_bar).to receive(:name).with().and_return(:bar)
     allow(@column_bar).to receive(:type).with().and_return(:binary)
     allow(@column_bar).to receive(:text?).with().and_return(false)
+    allow(@column_bar).to receive(:null).with().and_return(true)
     allow(@column_bar).to receive(:sql_type).with().and_return('blob')
 
     @column_baz = double("column_baz")
     allow(@column_baz).to receive(:name).with().and_return(:baz)
     allow(@column_baz).to receive(:type).with().and_return(:integer)
     allow(@column_baz).to receive(:text?).with().and_return(false)
+    allow(@column_baz).to receive(:null).with().and_return(true)
     allow(@column_baz).to receive(:sql_type).with().and_return('integer')
 
     @column_ajson = double("column_ajson")
     allow(@column_ajson).to receive(:name).with().and_return(:ajson)
     allow(@column_ajson).to receive(:type).with().and_return(nil)
     allow(@column_ajson).to receive(:text?).with().and_return(false)
+    allow(@column_ajson).to receive(:null).with().and_return(true)
     allow(@column_ajson).to receive(:sql_type).with().and_return('json')
 
     columns = [ @column_foo, @column_bar, @column_baz, @column_ajson ]
@@ -210,7 +214,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => nil,
         :storage => :text,
         :binary_header => true,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       })
     end
 
@@ -221,7 +226,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :storage => :text,
         :binary_header => true,
         :compress_if_over_length => 200,
-        :storage_string => nil
+        :storage_string => nil,
+        :null => true
       }, :foo, nil)
     end
 
@@ -231,7 +237,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => nil,
         :storage => :text,
         :binary_header => true,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       })
     end
 
@@ -241,7 +248,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => 123,
         :storage => :text,
         :binary_header => true,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       })
     end
 
@@ -251,8 +259,21 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => 123,
         :storage => :binary,
         :binary_header => true,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       }, :bar)
+    end
+
+    it "should pass through the nullability setting correctly" do
+      allow(@column_foo).to receive(:null).with().and_return(false)
+      expect_options_transform({ }, 123, {
+        :unknown_fields => :preserve,
+        :length_limit => 123,
+        :storage => :text,
+        :binary_header => true,
+        :compress_if_over_length => 200,
+        :null => false
+      }, :foo)
     end
 
     it "should pass through the column type correctly for a JSON column" do
@@ -261,7 +282,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => 123,
         :storage => :text,
         :binary_header => true,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       }, :ajson)
     end
 
@@ -270,7 +292,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :unknown_fields => :preserve,
         :length_limit => nil,
         :storage => :text,
-        :binary_header => true
+        :binary_header => true,
+        :null => true
       })
     end
 
@@ -280,7 +303,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => nil,
         :storage => :text,
         :binary_header => true,
-        :compress_if_over_length => 234
+        :compress_if_over_length => 234,
+        :null => true
       })
     end
 
@@ -290,7 +314,8 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
         :length_limit => nil,
         :storage => :text,
         :binary_header => false,
-        :compress_if_over_length => 200
+        :compress_if_over_length => 200,
+        :null => true
       })
     end
   end

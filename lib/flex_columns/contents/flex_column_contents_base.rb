@@ -107,11 +107,19 @@ module FlexColumns
         column_data[field_name] = new_value
       end
 
-      # "Touches"
+      # "Touches" the flex column by ensuring that it has been deserialized. We're very careful not to deserialize a
+      # flex column unless we absolutely have to, which also means that if you don't actually read or write any data
+      # from/to it, we'll never deserialize it -- and so any problems with its contents (e.g., unparseable JSON) won't
+      # be discovered, nor will no-longer-active fields be deleted (assuming <tt>:unknown_fields => :delete</tt>).
+      # This method is provided as a convenient way of accomplishing those things, without using a slightly-gross hack
+      # of reading some arbitrary field.
       def touch!
-        column_data.check!
+        column_data.touch!
       end
 
+      # Called via the ActiveRecord::Base#before_validation hook that gets installed on the enclosing model instance.
+      # This runs any validations that are present on this flex-column object, and then propagates any errors back to
+      # the enclosing model instance, so that errors show up there, as well.
       def before_validation!
         return unless model_instance
         unless valid?
@@ -121,17 +129,29 @@ module FlexColumns
         end
       end
 
+      # Returns a JSON string representing the current contents of this flex column. Note that this is _not_ always
+      # exactly what gets stored in the database, because of binary columns and compression; for that, use
+      # #to_stored_data, below.
       def to_json
         column_data.to_json
       end
 
+      # Returns a String representing exactly the data that will get stored in the database, for this flex column.
+      # This will be a UTF-8-encoded String containing pure JSON if this is a textual column, or, if it's a binary
+      # column, either a UTF-8-encoded JSON String prefixed by a small header, or a BINARY-encoded String containing
+      # GZip'ed JSON, prefixed by a small header.
       def to_stored_data
         column_data.to_stored_data
       end
 
+      # Called via the ActiveRecord::Base#before_save hook that gets installed on the enclosing model instance. This is
+      # what actually serializes the column data and sets it on the
       def before_save!
         return unless model_instance
-        model_instance[column_name] = column_data.to_stored_data if column_data.touched?
+
+        if column_data.touched? || ((! column.null) && model_instance[column_name] == nil)
+          model_instance[column_name] = column_data.to_stored_data
+        end
       end
 
       def keys

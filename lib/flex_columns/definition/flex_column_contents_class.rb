@@ -28,7 +28,8 @@ module FlexColumns
           :unknown_fields => options[:unknown_fields] || :preserve,
           :length_limit   => column.limit,
           :storage        => column.type == :binary ? :binary : :text,
-          :binary_header  => true
+          :binary_header  => true,
+          :null           => column.null
         }
 
         create_options[:binary_header] = false if options.has_key?(:header) && (! options[:header])
@@ -227,10 +228,10 @@ module FlexColumns
         end
       end
 
-      attr_reader :model_class
+      attr_reader :model_class, :column
 
       private
-      attr_reader :fields, :options, :custom_methods, :field_set, :column
+      attr_reader :fields, :options, :custom_methods, :field_set
 
       # Takes all custom methods defined on this flex-column class, and adds delegates to them to the given
       # +dynamic_methods_module+. +target_class+ is checked before each one to make sure we don't have a conflict.
