@@ -88,7 +88,8 @@ The JSON we produced was:
       end
     end
 
-    # Raised when the JSON stored in the database is a valid Ruby String, but fails parsing (via JSON#parse).
+    # FlexColumns::Errors::InvalidDataInDatabaseError: all errors raised because something is wrong with the data
+    # already stored in the database for a particular row and column.
     class InvalidDataInDatabaseError < DataError
       attr_reader :data_source, :raw_string, :additional_message
 
@@ -129,6 +130,8 @@ The JSON we produced was:
       end
     end
 
+    # Raised when the data in the database appears to have a +flex_columns+ header on it, but the version number is
+    # not something we support.
     class InvalidFlexColumnsVersionNumberInDatabaseError < InvalidDataInDatabaseError
       attr_reader :version_number_in_database, :max_version_number_supported
 
@@ -144,6 +147,10 @@ The JSON we produced was:
       end
     end
 
+    # Raised when the data in the database is not parseable as JSON (via JSON.parse). Note that we take special care to
+    # exclude characters from the message that aren't in a valid encoding, as this is one of the major causes of JSON
+    # parsing failures in some situations...and we really don't want to create an exception that itself has a message
+    # with encoding problems.
     class UnparseableJsonInDatabaseError < InvalidDataInDatabaseError
       attr_reader :source_exception
 
@@ -165,6 +172,13 @@ The JSON we produced was:
       end
     end
 
+    # Raised when the string stored in the database is not correctly encoded. We check for this situation before we
+    # even try to parse the string as JSON, because the kind of errors you get from this problem are otherwise
+    # maddeningly difficult to deal with -- partly because the exceptions themselves often end up with bad encoding.
+    #
+    # This class does a lot of work to filter out invalid characters, show them just as hex, and show you where into the
+    # string they occur. This is, again, so we don't make things worse by raising an exception with invalid characters
+    # in its message, and so that you can figure out where the problems are.
     class IncorrectlyEncodedStringInDatabaseError < InvalidDataInDatabaseError
       attr_reader :invalid_chars_as_array, :raw_data_as_array, :first_bad_position
 
@@ -201,12 +215,14 @@ Some of the invalid chars are (in hex):
       end
     end
 
+    # Raised when the JSON in the database is invalid -- not because it's not actually JSON, but because it doesn't
+    # represent a Hash.
     class InvalidJsonInDatabaseError < InvalidDataInDatabaseError
       attr_reader :returned_data
 
       def initialize(data_source, raw_string, returned_data)
-        super(data_source, raw_string)
         @returned_data = returned_data
+        super(data_source, raw_string)
       end
 
       private
