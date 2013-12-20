@@ -77,6 +77,45 @@ describe FlexColumns::HasFlexColumns do
       @klass._flex_column_dynamic_methods_module.should be(@dmm)
     end
 
+    it "should call through on before_validate to all flex column objects, creating them if necessary" do
+      instance = @klass.new
+
+      fcc_foo_instance = double("fcc_foo_instance")
+      expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
+      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+
+      fcc_bar_instance = double("fcc_bar_instance")
+      expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
+
+      expect(fcc_foo_instance).to receive(:before_validation!).once.with()
+      expect(fcc_bar_instance).to receive(:before_validation!).once.with()
+
+      instance._flex_columns_before_validation!
+    end
+
+    it "should call through on before_save to only flex column objects that have been accessed" do
+      instance = @klass.new
+      instance._flex_columns_before_save!
+
+      fcc_foo_instance = double("fcc_foo_instance")
+      expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
+      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+
+      expect(fcc_foo_instance).to receive(:before_save!).once.with()
+
+      instance._flex_columns_before_save!
+
+
+      fcc_bar_instance = double("fcc_bar_instance")
+      expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
+      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+
+      expect(fcc_foo_instance).to receive(:before_save!).once.with()
+      expect(fcc_bar_instance).to receive(:before_save!).once.with()
+
+      instance._flex_columns_before_save!
+    end
+
     it "should return the flex-column class from #_flex_column_class_for" do
       @klass._flex_column_class_for(:foo).should be(@fcc_foo)
       @klass._flex_column_class_for(:bar).should be(@fcc_bar)

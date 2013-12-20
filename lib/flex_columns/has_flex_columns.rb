@@ -4,23 +4,40 @@ require 'active_support/core_ext'
 require 'flex_columns/contents/flex_column_contents_base'
 
 module FlexColumns
+  # HasFlexColumns is the module that gets included in an ActiveRecord model class as soon as it declares a flex
+  # column (using FlexColumns::ActiveRecord::Base#flex_column). While most of the actual work of maintaining and working
+  # with a flex column is accomplished by the FlexColumns::Definition::FlexColumnContentsClass module and the
+  # FlexColumns::Contents::FlexColumnContentsBase class, there remains, nevertheless, some important work to do here.
   module HasFlexColumns
     extend ActiveSupport::Concern
 
+    # Register our hooks: we need to run before validation to make sure any validations defined directly on a flex
+    # column class are run (and transfer their errors over to the model object itself), and to run before save to make
+    # sure we serialize up any changes from a flex-column object.
     included do
       before_validation :_flex_columns_before_validation!
       before_save :_flex_columns_before_save!
     end
 
+    # Before we save this model, make sure each flex column has a chance to serialize itself up and assign itself
+    # properly to this model object. Note that we only need to call through to flex-column objects that have actually
+    # been instantiated, since, by definition, there's no way the contents of any other flex columns could possibly
+    # have been changed.
     def _flex_columns_before_save!
       _all_present_flex_column_objects.each do |flex_column_object|
         flex_column_object.before_save!
       end
     end
 
+    # Before we validate this model, make sure each flex column has a chance to run its validations and propagate any
+    # errors back to this model. Note that we need to call through to any flex-column object that has a validation
+    # defined, since we want to comply with Rails' validation strategy: validations run whenever you save an object,
+    # whether you've changed that particular attribute or not.
     def _flex_columns_before_validation!
       self.class._all_flex_column_names.each do |column_name|
-        _flex_column_object_for(column_name).before_validation!
+        # if self.class._flex_column_class_for(column_name).has_any_validations?
+          _flex_column_object_for(column_name).before_validation!
+        # end
       end
     end
 
