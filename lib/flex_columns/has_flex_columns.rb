@@ -24,8 +24,11 @@ module FlexColumns
     # been instantiated, since, by definition, there's no way the contents of any other flex columns could possibly
     # have been changed.
     def _flex_columns_before_save!
-      _all_present_flex_column_objects.each do |flex_column_object|
-        flex_column_object.before_save! if flex_column_object.touched?
+      self.class._all_flex_column_names.each do |flex_column_name|
+        klass = self.class._flex_column_class_for(flex_column_name)
+        if klass.requires_serialization_on_save?(self)
+          _flex_column_object_for(flex_column_name).before_save!
+        end
       end
     end
 
@@ -42,7 +45,7 @@ module FlexColumns
     # Returns the correct flex-column object for the given column name. This simply creates an instance of the
     # appropriate flex-column class, and saves it away so it will be returned again if someone requests the object for
     # the same column later.
-    def _flex_column_object_for(column_name)
+    def _flex_column_object_for(column_name, create_if_needed = true)
       # It's possible to end up with two copies of this method on a class, if that class both has a flex column of its
       # own _and_ includes one via FlexColumns::Including::IncludeFlexColumns#include_flex_columns_from. If so, we want
       # each method to defer to the other one, so that both will work.
@@ -55,7 +58,12 @@ module FlexColumns
       end
 
       column_name = self.class._flex_column_normalize_name(column_name)
-      _flex_column_objects[column_name] ||= self.class._flex_column_class_for(column_name).new(self)
+
+      out = _flex_column_objects[column_name]
+      if (! out) && create_if_needed
+        out = _flex_column_objects[column_name] = self.class._flex_column_class_for(column_name).new(self)
+      end
+      out
     end
 
     # When you reload a model object, we should reload its flex-column objects, too.

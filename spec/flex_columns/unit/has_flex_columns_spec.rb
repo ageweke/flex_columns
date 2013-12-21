@@ -196,14 +196,16 @@ describe FlexColumns::HasFlexColumns do
       instance._flex_columns_before_validation!
     end
 
-    it "should call through on before_save to only flex column objects that have been touched" do
+    it "should call through on before_save to only flex column objects that say they need it" do
       instance = @klass.new
+      allow(@fcc_foo).to receive(:requires_serialization_on_save?).with(instance).and_return(false)
+      allow(@fcc_bar).to receive(:requires_serialization_on_save?).with(instance).and_return(false)
       instance._flex_columns_before_save!
 
       fcc_foo_instance = double("fcc_foo_instance")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
       instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
-      allow(fcc_foo_instance).to receive(:touched?).with().and_return(false)
+      allow(@fcc_foo).to receive(:requires_serialization_on_save?).with(instance).and_return(false)
 
       instance._flex_columns_before_save!
 
@@ -211,13 +213,13 @@ describe FlexColumns::HasFlexColumns do
       fcc_bar_instance = double("fcc_bar_instance")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
       instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
-      allow(fcc_bar_instance).to receive(:touched?).with().and_return(true)
+      allow(@fcc_bar).to receive(:requires_serialization_on_save?).with(instance).and_return(true)
 
       expect(fcc_bar_instance).to receive(:before_save!).once.with()
       instance._flex_columns_before_save!
 
-      allow(fcc_foo_instance).to receive(:touched?).with().and_return(true)
-      allow(fcc_bar_instance).to receive(:touched?).with().and_return(true)
+      allow(@fcc_foo).to receive(:requires_serialization_on_save?).with(instance).and_return(true)
+      allow(@fcc_bar).to receive(:requires_serialization_on_save?).with(instance).and_return(true)
 
       expect(fcc_foo_instance).to receive(:before_save!).once.with()
       expect(fcc_bar_instance).to receive(:before_save!).once.with()

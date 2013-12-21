@@ -28,6 +28,7 @@ describe "FlexColumns validations" do
 
     user = ::User.new
     user.name = 'User 1'
+    user.user_attributes.touch!
 
     e = capture_exception(::ActiveRecord::RecordInvalid) { user.save! }
 

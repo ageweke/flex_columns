@@ -159,10 +159,8 @@ module FlexColumns
       def before_save!
         return unless model_instance
 
-        # We set the data only if someone has actually changed it, or if the column cannot be left NULL and it currently
-        # is. (This latter case should generally only arise when creating a new row, but can also occur due to
-        # migrations in certain bizarre circumstances, with certain databases that suck at such things. ;)
-        if column_data.touched? || ((! column.null) && model_instance[column_name] == nil)
+        # Make sure we only save if we need to -- otherwise, save the CPU cycles.
+        if self.class.requires_serialization_on_save?(model_instance)
           model_instance[column_name] = column_data.to_stored_data
         end
       end

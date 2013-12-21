@@ -478,6 +478,50 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
       @klass.is_flex_column_class?.should be
     end
 
+    describe "#requires_serialization_on_save?" do
+      it "should be true if there's an object and it has been touched" do
+        model = double("model")
+        fco = double("fco")
+        allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(fco)
+        allow(fco).to receive(:touched?).with().and_return(true)
+        @klass.requires_serialization_on_save?(model).should be
+      end
+
+      it "should be false if there's an object but it hasn't been touched" do
+        model = double("model")
+        fco = double("fco")
+        allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(fco)
+        allow(fco).to receive(:touched?).with().and_return(false)
+        @klass.requires_serialization_on_save?(model).should_not be
+      end
+
+      it "should be false if there's no object and the column is NULLable" do
+        model = double("model")
+        fco = double("fco")
+        allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(nil)
+        allow(@column_foo).to receive(:null).with().and_return(true)
+        @klass.requires_serialization_on_save?(model).should_not be
+      end
+
+      it "should be false if there's no object and the column is not null, but there's data" do
+        model = double("model")
+        fco = double("fco")
+        allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(nil)
+        allow(@column_foo).to receive(:null).with().and_return(false)
+        allow(model).to receive(:[]).with(:foo).and_return("some data")
+        @klass.requires_serialization_on_save?(model).should_not be
+      end
+
+      it "should be true if there's no object and the column is not null, and there's no data" do
+        model = double("model")
+        fco = double("fco")
+        allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(nil)
+        allow(@column_foo).to receive(:null).with().and_return(false)
+        allow(model).to receive(:[]).with(:foo).and_return(nil)
+        @klass.requires_serialization_on_save?(model).should be
+      end
+    end
+
     describe "#include_fields_into" do
       before :each do
         @dmm = Class.new

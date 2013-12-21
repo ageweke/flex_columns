@@ -138,6 +138,15 @@ module FlexColumns
         field_set.all_field_names
       end
 
+      # Given a model instance, do we need to save this column? This is true under one of two cases:
+      #
+      # * Someone has changed ("touched") at least one of the flex-column fields (or called #touch! on it);
+      # * The column is non-NULL, and there's no data in it right now. (Saving it will populate it with an empty string.)
+      def requires_serialization_on_save?(model)
+        maybe_flex_object = model._flex_column_object_for(column_name, false)
+        (maybe_flex_object && maybe_flex_object.touched?) || ((! column.null) && (! model[column_name]))
+      end
+
       # Are fields in this flex column private by default?
       def fields_are_private_by_default?
         ensure_setup!

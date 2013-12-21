@@ -182,6 +182,7 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
         before :each do
           expect_column_data_creation(@json_string)
           @instance = @klass.new(@model_instance)
+          allow(@model_instance).to receive(:_flex_column_object_for).with(:fcn, false).and_return(@instance)
         end
 
         it "should tell you if it's been touched" do
@@ -191,44 +192,15 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
           @instance.touched?.should_not be
         end
 
-        it "should save if the column data has been touched" do
-          expect(@column_data).to receive(:touched?).once.with().and_return(true)
+        it "should save if the class tells it to" do
+          expect(@klass).to receive(:requires_serialization_on_save?).once.with(@model_instance).and_return(true)
           expect(@column_data).to receive(:to_stored_data).once.with().and_return("somestoreddata")
           expect(@model_instance).to receive(:[]=).once.with(:fcn, "somestoreddata")
           @instance.before_save!
         end
 
-        it "should save if the column is non-NULL and contains nothing" do
-          expect(@column_data).to receive(:touched?).once.with().and_return(false)
-
-          column = double("column")
-          allow(column).to receive(:null).with().and_return(false)
-          allow(@klass).to receive(:column).once.with().and_return(column)
-          allow(@model_instance).to receive(:[]).with(:fcn).and_return(nil)
-
-          expect(@column_data).to receive(:to_stored_data).once.with().and_return("somestoreddata")
-          expect(@model_instance).to receive(:[]=).once.with(:fcn, "somestoreddata")
-          @instance.before_save!
-        end
-
-        it "should not save if the column is NULL and contains nothing" do
-          expect(@column_data).to receive(:touched?).once.with().and_return(false)
-
-          column = double("column")
-          allow(column).to receive(:null).with().and_return(true)
-          allow(@klass).to receive(:column).once.with().and_return(column)
-
-          @instance.before_save!
-        end
-
-        it "should not save if the column is non-NULL but contains something" do
-          expect(@column_data).to receive(:touched?).once.with().and_return(false)
-
-          column = double("column")
-          allow(column).to receive(:null).with().and_return(false)
-          allow(@klass).to receive(:column).once.with().and_return(column)
-          allow(@model_instance).to receive(:[]).with(:fcn).and_return("somedatafirst")
-
+        it "should not save if the class tells it not to" do
+          expect(@klass).to receive(:requires_serialization_on_save?).once.with(@model_instance).and_return(false)
           @instance.before_save!
         end
       end
