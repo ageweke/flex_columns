@@ -184,6 +184,13 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
           @instance = @klass.new(@model_instance)
         end
 
+        it "should tell you if it's been touched" do
+          expect(@column_data).to receive(:touched?).once.with().and_return(true)
+          @instance.touched?.should be
+          expect(@column_data).to receive(:touched?).once.with().and_return(false)
+          @instance.touched?.should_not be
+        end
+
         it "should save if the column data has been touched" do
           expect(@column_data).to receive(:touched?).once.with().and_return(true)
           expect(@column_data).to receive(:to_stored_data).once.with().and_return("somestoreddata")

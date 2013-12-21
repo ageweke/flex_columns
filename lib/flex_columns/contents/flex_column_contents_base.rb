@@ -108,14 +108,23 @@ module FlexColumns
         column_data[field_name] = new_value
       end
 
-      # "Touches" the flex column by ensuring that it has been deserialized. We're very careful not to deserialize a
-      # flex column unless we absolutely have to, which also means that if you don't actually read or write any data
-      # from/to it, we'll never deserialize it -- and so any problems with its contents (e.g., unparseable JSON) won't
-      # be discovered, nor will no-longer-active fields be deleted (assuming <tt>:unknown_fields => :delete</tt>).
-      # This method is provided as a convenient way of accomplishing those things, without using a slightly-gross hack
-      # of reading some arbitrary field.
+      # A flex column has been "touched" if it has had at least one field changed to a different value than it had
+      # before, or if someone has called #touch! on it. If a column has not been touched, validations are not run on it,
+      # nor is it re-serialized back out to the database on save!. Generally, this is a good thing: it increases
+      # performance substantially for times when you haven't actually changed the flex column's contents at all. It does
+      # mean that invalid data won't be detected and unknown fields won't be removed (if you've specified
+      # <tt>:unknown_fields => delete</tt>), however.
+      #
+      # There may be times, however, when you want to make sure the column is stored back out (including removing any
+      # unknown fields, if you selected that option), or to make sure that validations get run, no matter what.
+      # In this case, you can call #touch!.
       def touch!
         column_data.touch!
+      end
+
+      # Has at least one field in the column been changed, or has someone called #touch! ?
+      def touched?
+        column_data.touched?
       end
 
       # Called via the ActiveRecord::Base#before_validation hook that gets installed on the enclosing model instance.
