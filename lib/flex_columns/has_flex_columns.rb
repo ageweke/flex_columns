@@ -25,7 +25,7 @@ module FlexColumns
     # have been changed.
     def _flex_columns_before_save!
       _all_present_flex_column_objects.each do |flex_column_object|
-        flex_column_object.before_save!
+        flex_column_object.before_save! if flex_column_object.touched?
       end
     end
 
@@ -34,14 +34,18 @@ module FlexColumns
     # defined, since we want to comply with Rails' validation strategy: validations run whenever you save an object,
     # whether you've changed that particular attribute or not.
     def _flex_columns_before_validation!
-      self.class._all_flex_column_names.each do |column_name|
-        # if self.class._flex_column_class_for(column_name).has_any_validations?
-          _flex_column_object_for(column_name).before_validation!
-        # end
+      _all_present_flex_column_objects.each do |flex_column_object|
+        flex_column_object.before_validation! if flex_column_object.touched?
       end
     end
 
+    # Returns the correct flex-column object for the given column name. This simply creates an instance of the
+    # appropriate flex-column class, and saves it away so it will be returned again if someone requests the object for
+    # the same column later.
     def _flex_column_object_for(column_name)
+      # It's possible to end up with two copies of this method on a class, if that class both has a flex column of its
+      # own _and_ includes one via FlexColumns::Including::IncludeFlexColumns#include_flex_columns_from. If so, we want
+      # each method to defer to the other one, so that both will work.
       begin
         return super(column_name)
       rescue NoMethodError
@@ -54,18 +58,22 @@ module FlexColumns
       _flex_column_objects[column_name] ||= self.class._flex_column_class_for(column_name).new(self)
     end
 
-    def _all_present_flex_column_objects
-      _flex_column_objects.values
-    end
-
+    # When you reload a model object, we should reload its flex-column objects, too.
     def reload(*args)
       super(*args)
       @_flex_column_objects = { }
     end
 
     private
+    # Returns the Hash that we keep flex-column objects in, indexed by column name.
     def _flex_column_objects
       @_flex_column_objects ||= { }
+    end
+
+    # Returns all flex-column objects that have been instantiated -- that is, any flex-column object that anybody has
+    # asked for yet.
+    def _all_present_flex_column_objects
+      _flex_column_objects.values
     end
 
     module ClassMethods
