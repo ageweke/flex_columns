@@ -205,9 +205,11 @@ describe FlexColumns::Errors do
       chars = [ double("char-a"), double("char-b"), double("char-c") ]
       allow(chars[0]).to receive(:valid_encoding?).with().and_return(true)
       allow(chars[0]).to receive(:to_s).with().and_return("X")
+      allow(chars[0]).to receive(:inspect).with().and_return("X")
       allow(chars[1]).to receive(:valid_encoding?).with().and_return(false)
       allow(chars[2]).to receive(:valid_encoding?).with().and_return(true)
       allow(chars[2]).to receive(:to_s).with().and_return("Z")
+      allow(chars[2]).to receive(:inspect).with().and_return("Z")
       allow(source_message).to receive(:chars).with().and_return(chars)
 
       allow(source_exception).to receive(:message).with().and_return(source_message)
@@ -236,6 +238,7 @@ describe FlexColumns::Errors do
       chars.each_with_index do |char, i|
         allow(char).to receive(:valid_encoding?).with().and_return(true)
         allow(char).to receive(:to_s).with().and_return((65 + (i % 26)).chr)
+        allow(char).to receive(:inspect).with().and_return((65 + (i % 26)).chr)
       end
 
       [ 53, 68, 95 ].each do |bad_char_pos|
