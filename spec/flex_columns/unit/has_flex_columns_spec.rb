@@ -47,6 +47,95 @@ describe FlexColumns::HasFlexColumns do
     @klass._flex_column_normalize_name(:fOo).should == :foo
   end
 
+  it "should say it has flex columns" do
+    @klass.has_any_flex_columns?.should be
+  end
+
+  describe "#flex_column" do
+    it "should normalize the name of the column" do
+      fcc = double("fcc")
+      expect(Class).to receive(:new).once.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc)
+      expect(fcc).to receive(:setup!).once.with(@klass, :foo, { })
+      allow(fcc).to receive(:sync_methods!).with()
+
+      @klass.flex_column(' fOo ')
+    end
+
+    it "should replace existing columns, call #remove_all_methods! and #sync_methods! appropriately, and define a method that returns the right object" do
+      fcc_foo = double("fcc_foo")
+      expect(Class).to receive(:new).once.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc_foo)
+      expect(fcc_foo).to receive(:quux).once.with(:a, :z, :q)
+
+      passed_block = nil
+      expect(fcc_foo).to receive(:setup!).once.with(@klass, :foo, { }) do |*args, &block|
+        passed_block = block
+      end
+      allow(fcc_foo).to receive(:column_name).with().and_return(:foo)
+
+      dmm = double("dmm")
+      expect(FlexColumns::Util::DynamicMethodsModule).to receive(:new).once.with(@klass, :FlexColumnsDynamicMethods).and_return(dmm)
+
+      expect(dmm).to receive(:remove_all_methods!).once.with()
+      expect(fcc_foo).to receive(:sync_methods!).once.with()
+      @klass.flex_column(:foo) do
+        quux(:a, :z, :q)
+      end
+      fcc_foo.instance_eval(&passed_block)
+
+      @klass._flex_column_class_for(:foo).should be(fcc_foo)
+
+      instance = @klass.new
+      fcc_foo_instance = double("fcc_foo_instance")
+      expect(fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
+      instance.foo.should be(fcc_foo_instance)
+
+
+
+      fcc_bar = double("fcc_bar")
+      expect(Class).to receive(:new).once.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc_bar)
+      expect(fcc_bar).to receive(:setup!).once.with(@klass, :bar, { })
+      allow(fcc_bar).to receive(:column_name).with().and_return(:bar)
+
+      expect(dmm).to receive(:remove_all_methods!).once.with()
+      expect(fcc_foo).to receive(:sync_methods!).once.with()
+      expect(fcc_bar).to receive(:sync_methods!).once.with()
+      @klass.flex_column(:bar)
+
+      @klass._flex_column_class_for(:foo).should be(fcc_foo)
+      @klass._flex_column_class_for(:bar).should be(fcc_bar)
+
+      fcc_bar_instance = double("fcc_bar_instance")
+      expect(fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
+      instance.foo.should be(fcc_foo_instance)
+      instance.bar.should be(fcc_bar_instance)
+
+
+      fcc_foo_2 = double("fcc_foo_2")
+      expect(Class).to receive(:new).once.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc_foo_2)
+      expect(fcc_foo_2).to receive(:setup!).once.with(@klass, :foo, { :a => :b, :c => :d })
+      allow(fcc_foo_2).to receive(:column_name).with().and_return(:foo)
+
+      expect(dmm).to receive(:remove_all_methods!).once.with()
+      expect(fcc_foo_2).to receive(:sync_methods!).once.with()
+      expect(fcc_bar).to receive(:sync_methods!).once.with()
+
+      @klass.flex_column(:foo, :a => :b, :c => :d)
+
+      @klass._flex_column_class_for(:foo).should be(fcc_foo_2)
+      @klass._flex_column_class_for(:bar).should be(fcc_bar)
+
+      instance = @klass.new
+      fcc_foo_2_instance = double("fcc_foo_2_instance")
+      expect(fcc_foo_2).to receive(:new).once.with(instance).and_return(fcc_foo_2_instance)
+      instance.foo.should be(fcc_foo_2_instance)
+
+      instance = @klass.new
+      fcc_bar_instance = double("fcc_bar_instance")
+      expect(fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
+      instance.bar.should be(fcc_bar_instance)
+    end
+  end
+
   context "with two declared flex columns" do
     before :each do
       @fcc_foo = double("fcc_foo")
@@ -225,6 +314,32 @@ describe FlexColumns::HasFlexColumns do
       fcc_bar_instance_2 = double("fcc_bar_instance_2")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance_2)
       instance._flex_column_object_for(:bar).should be(fcc_bar_instance_2)
+    end
+
+    it "should tell you what flex-column names have been defined" do
+      @klass._all_flex_column_names.sort_by(&:to_s).should == [ :foo, :bar ].sort_by(&:to_s)
+    end
+
+    it "should normalize column names properly" do
+      @klass._flex_column_normalize_name(:baz).should == :baz
+      @klass._flex_column_normalize_name(:' bAz ').should == :baz
+      @klass._flex_column_normalize_name('   bAZ ').should == :baz
+    end
+
+    it "should create flex-column objects upon request that aren't attached to a model instance" do
+      fcc_foo_instance = double("fcc_foo_instance")
+      expect(@fcc_foo).to receive(:new).once.with(nil).and_return(fcc_foo_instance)
+      @klass.create_flex_object_from(:foo, nil).should be(fcc_foo_instance)
+
+      fcc_foo_instance = double("fcc_foo_instance")
+      expect(@fcc_foo).to receive(:new).once.with(" JSON string ").and_return(fcc_foo_instance)
+      @klass.create_flex_object_from(:foo, " JSON string ").should be(fcc_foo_instance)
+
+      fcc_bar_instance_1 = double("fcc_bar_instance_1")
+      expect(@fcc_bar).to receive(:new).once.with(nil).and_return(fcc_bar_instance_1)
+      fcc_bar_instance_2 = double("fcc_bar_instance_2")
+      expect(@fcc_bar).to receive(:new).once.with(" JSON string ").and_return(fcc_bar_instance_2)
+      @klass.create_flex_objects_from(:bar, [ nil, " JSON string " ]).should == [ fcc_bar_instance_1, fcc_bar_instance_2 ]
     end
   end
 
