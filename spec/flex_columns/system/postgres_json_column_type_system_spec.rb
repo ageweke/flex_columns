@@ -54,13 +54,31 @@ describe "FlexColumns PostgreSQL JSON column type support" do
         user.wants_email = 'foo' * 10_000
         user.save!
 
+        user_again = ::User.find(user.id)
+        user_again.name.should == 'User 1'
+        user_again.wants_email.should == 'foo' * 10_000
+
         user_bd = ::UserBackdoor.find(user.id)
-        string = user_bd.user_attributes
-        string.length.should > 30_000
-        string.should match(/^\s*\{/i)
-        parsed = JSON.parse(string)
+        raw = user_bd.user_attributes
+
+        parsed = nil
+        if raw.kind_of?(String)
+          string.length.should > 30_000
+          string.should match(/^\s*\{/i)
+          parsed = JSON.parse(string)
+        elsif raw.kind_of?(Hash)
+          parsed = raw
+        else
+          raise "Unknown raw: #{raw.inspect}"
+        end
+
         parsed['wants_email'].should == "foo" * 10_000
         parsed.keys.should == [ 'wants_email' ]
+
+        if raw.kind_of?(Hash)
+          as_stored = user.user_attributes.to_stored_data
+          as_stored.class.should == Hash
+        end
       end
     end
   end

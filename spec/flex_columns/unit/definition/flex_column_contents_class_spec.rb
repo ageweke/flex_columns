@@ -35,14 +35,21 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     allow(@column_baz).to receive(:null).with().and_return(true)
     allow(@column_baz).to receive(:sql_type).with().and_return('integer')
 
+    @column_quux = double("column_quux")
+    allow(@column_quux).to receive(:name).with().and_return(:quux)
+    allow(@column_quux).to receive(:type).with().and_return(:string)
+    allow(@column_quux).to receive(:text?).with().and_return(true)
+    allow(@column_quux).to receive(:null).with().and_return(true)
+    allow(@column_quux).to receive(:sql_type).with().and_return('varchar')
+
     @column_ajson = double("column_ajson")
     allow(@column_ajson).to receive(:name).with().and_return(:ajson)
-    allow(@column_ajson).to receive(:type).with().and_return(nil)
+    allow(@column_ajson).to receive(:type).with().and_return(:json)
     allow(@column_ajson).to receive(:text?).with().and_return(false)
     allow(@column_ajson).to receive(:null).with().and_return(true)
     allow(@column_ajson).to receive(:sql_type).with().and_return('json')
 
-    columns = [ @column_foo, @column_bar, @column_baz, @column_ajson ]
+    columns = [ @column_foo, @column_bar, @column_baz, @column_quux, @column_ajson ]
     allow(@model_class).to receive(:columns).with().and_return(columns)
 
     allow(@model_class).to receive(:const_defined?).and_return(false)
@@ -99,7 +106,7 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     end
 
     it "should raise a nice error if passed something that isn't a column on the model" do
-      e = capture_exception(FlexColumns::Errors::NoSuchColumnError) { @klass.setup!(@model_class, :quux) { } }
+      e = capture_exception(FlexColumns::Errors::NoSuchColumnError) { @klass.setup!(@model_class, :unknowncolumn) { } }
       e.message.should match(/quux/i)
       e.message.should match(/foo/i)
       e.message.should match(/bar/i)
@@ -124,6 +131,10 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
 
     it "should work on a JSON column" do
       @klass.setup!(@model_class, :ajson) { }
+    end
+
+    it "should work on a string column" do
+      @klass.setup!(@model_class, :quux) { }
     end
 
     it "should create a new field set and name itself properly" do
@@ -280,7 +291,7 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
       expect_options_transform({ }, 123, {
         :unknown_fields => :preserve,
         :length_limit => 123,
-        :storage => :text,
+        :storage => :json,
         :binary_header => true,
         :compress_if_over_length => 200,
         :null => true

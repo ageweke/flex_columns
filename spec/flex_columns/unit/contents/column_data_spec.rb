@@ -49,8 +49,12 @@ describe FlexColumns::Contents::ColumnData do
   end
 
   def new_with_string(s, options = { })
+    new_with(options.merge(:storage_string => s))
+  end
+
+  def new_with(options)
     effective_options = {
-      :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => s, :binary_header => true, :null => true
+      :data_source => @data_source, :unknown_fields => :preserve, :storage => :text, :storage_string => nil, :binary_header => true, :null => true
       }.merge(options)
     klass.new(@field_set, effective_options)
   end
@@ -155,6 +159,22 @@ describe FlexColumns::Contents::ColumnData do
       parsed['baz'].should == 'quux'
     end
 
+    it "should return JSON data with #to_json" do
+      json = @instance.to_json
+      parsed = JSON.parse(json)
+      parsed.keys.sort.should == %w{foo bar baz}.sort
+      parsed['foo'].should == 'bar'
+      parsed['bar'].should == 123
+      parsed['baz'].should == 'quux'
+    end
+
+    it "should accept a Hash as JSON, already parsed by the database stack" do
+      @instance = new_with(:storage_string => { 'foo' => 'bar', 'baz' => 123, 'bar' => 'quux' })
+      @instance['foo'].should == 'bar'
+      @instance['bar'].should == 'quux'
+      @instance['baz'].should == 123
+    end
+
     describe "#to_stored_data" do
       it "should return JSON data properly" do
         json = @instance.to_stored_data
@@ -163,6 +183,11 @@ describe FlexColumns::Contents::ColumnData do
         parsed['foo'].should == 'bar'
         parsed['bar'].should == 123
         parsed['baz'].should == 'quux'
+      end
+
+      it "should return a raw JSON hash if the column type is :json" do
+        @instance = new_with_string(@json_string, :storage => :json)
+        @instance.to_stored_data.should == { :foo => 'bar', :baz => 'quux', :bar => 123 }
       end
 
       describe "with a text column" do
@@ -261,6 +286,7 @@ describe FlexColumns::Contents::ColumnData do
       it "should raise an error if encoding is wrong" do
         bad_encoding = double("bad_encoding")
         allow(bad_encoding).to receive(:kind_of?).with(String).and_return(true)
+        allow(bad_encoding).to receive(:kind_of?).with(Hash).and_return(false)
         expect(bad_encoding).to receive(:valid_encoding?).with().and_return(false)
 
         exception = StandardError.new("bonk")

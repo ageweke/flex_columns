@@ -33,13 +33,15 @@ module FlexColumns
       #                 serialized form is longer than this limit. This is used to avoid cases where the database might
       #                 otherwise silently truncate the data being stored (I'm looking at you, MySQL) and hence corrupt
       #                 stored data.
-      # [:storage] This must be +:binary+ or +:text+. If +:text+, standard, uncompressed JSON will always be stored.
+      # [:storage] This must be +:binary+, +:text+, or :json. If +:text+, standard, uncompressed JSON will always be stored.
       #            (It is not possible to store compressed data reliably in a text column, because the database will
       #            interpret the bytes as characters and may modify them or raise an exception if byte sequences are
       #            present that would be invalid characters in whatever encoding it's using.) If :binary, then a very
       #            small header will be written that's just for versioning (currently +FC:01,+), followed by a marker
       #            indicating if it's compressed (+1,+) or not (+0,+), followed by either standard, uncompressed JSON
-      #            encoded in UTF-8 or the GZipped version of the same.
+      #            encoded in UTF-8 or the GZipped version of the same. If :json, then we assume the database has
+      #            a native JSON type (like PostgreSQL with sufficiently-recent ActiveRecord and PG gem), and deal in
+      #            an actual Hash, which the database processes directly.
       # [:compress_if_over_length] If present, must be set to an integer. If +:storage+ is +:binary+ and the JSON string
       #                            is at least this many bytes long, then this class will compress it before
       #                            returning its stored data (from #to_stored_data); if the compressed version is at
@@ -65,12 +67,12 @@ module FlexColumns
         @binary_header = options[:binary_header]
         @null = options[:null]
 
-        raise ArgumentError, "Invalid JSON string: #{storage_string.inspect}" if storage_string && (! storage_string.kind_of?(String))
+        raise ArgumentError, "Invalid JSON string: #{storage_string.inspect}" if storage_string && (! storage_string.kind_of?(String)) && (! storage_string.kind_of?(Hash))
         raise ArgumentError, "Must supply a FieldSet, not: #{field_set.inspect}" unless field_set.kind_of?(FlexColumns::Definition::FieldSet)
         raise ArgumentError, "Must supply a data source, not: #{data_source.inspect}" unless data_source
         raise ArgumentError, "Invalid value for :unknown_fields: #{unknown_fields.inspect}" unless [ :preserve, :delete ].include?(unknown_fields)
         raise ArgumentError, "Invalid value for :length_limit: #{length_limit.inspect}" if length_limit && (! (length_limit.kind_of?(Integer) && length_limit >= 8))
-        raise ArgumentError, "Invalid value for :storage: #{storage.inspect}" unless [ :binary, :text ].include?(storage)
+        raise ArgumentError, "Invalid value for :storage: #{storage.inspect}" unless [ :binary, :text, :json ].include?(storage)
         raise ArgumentError, "Invalid value for :compress_if_over_length: #{compress_if_over_length.inspect}" if compress_if_over_length && (! compress_if_over_length.kind_of?(Integer))
         raise ArgumentError, "Invalid value for :binary_header: #{binary_header.inspect}" unless [ true, false ].include?(binary_header)
         raise ArgumentError, "Invalid value for :null: #{null.inspect}" unless [ true, false ].include?(null)
@@ -147,15 +149,8 @@ module FlexColumns
       def to_json
         deserialize_if_necessary!
 
-        storage_hash = { }
-        storage_hash.merge!(unknown_field_contents_by_key) unless unknown_fields == :delete
-
-        field_contents_by_field_name.each do |field_name, field_contents|
-          storage_name = field_set.field_named(field_name).json_storage_name
-          storage_hash[storage_name] = field_contents
-        end
-
-        as_string = storage_hash.to_json
+        json_hash = to_json_hash
+        as_string = json_hash.to_json
         as_string = as_string.encode(Encoding::UTF_8) if as_string.respond_to?(:encode)
 
         as_string
@@ -163,16 +158,26 @@ module FlexColumns
 
       # Returns the exact String that should be stored in the database -- compressed or not, with header or not, etc.
       # Raises FlexColumns::Errors::JsonTooLongError if the string is too long to fit in the database.
+      #
+      # (Under PostgreSQL, with appropriate ActiveRecord and PostgreSQL support,)
       def to_stored_data
         out = nil
 
-        instrument("serialize") do
-          out = to_json
+        deserialize_if_necessary!
 
-          if out =~ /^\s*\{\s*\}\s*$/i
-            out = @null ? nil : ""
+        return to_json_hash if storage == :json
+
+        instrument("serialize") do
+          if storage == :json
+            out = to_json_hash
           else
-            out = to_binary_storage(out) if storage == :binary
+            out = to_json
+
+            if out.length < 8 && out =~ /^\s*\{\s*\}\s*$/i
+              out = @null ? nil : ""
+            else
+              out = to_binary_storage(out) if storage == :binary
+            end
           end
         end
 
@@ -194,6 +199,20 @@ module FlexColumns
       # What maximum fraction of the uncompressed size does a compressed string have to be before we use it in preference
       # to the uncompressed string?
       MIN_SIZE_REDUCTION_RATIO_FOR_COMPRESSION = 0.95
+
+      # Returns a Hash with exactly the key-to-value mappings that we'd store as JSON -- that is, uses fields'
+      # JSON storage aliases, not field names, and omits unknown fields if <tt>unknown_fields == :delete</tt>.
+      def to_json_hash
+        json_hash = { }
+        json_hash.merge!(unknown_field_contents_by_key) unless unknown_fields == :delete
+
+        field_contents_by_field_name.each do |field_name, field_contents|
+          storage_name = field_set.field_named(field_name).json_storage_name
+          json_hash[storage_name] = field_contents
+        end
+
+        json_hash
+      end
 
       # Fires the appropriate +flex_columns+ notification with the given +name+, any +additional+ options in the payload,
       # wrapped around the supplied block.
@@ -328,6 +347,13 @@ module FlexColumns
       def deserialize_if_necessary!
         unless field_contents_by_field_name
           raw_data = storage_string || ''
+
+          # PostgreSQL's JSON data type, combined with recent-enough adapters and ActiveRecord, will return JSON as a
+          # Hash directly from the driver (!).
+          if raw_data.kind_of?(Hash)
+            store_fields!(raw_data)
+            return
+          end
 
           if raw_data.respond_to?(:valid_encoding?) && (! raw_data.valid_encoding?)
             raise FlexColumns::Errors::IncorrectlyEncodedStringInDatabaseError.new(data_source, raw_data)

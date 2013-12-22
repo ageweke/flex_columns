@@ -22,12 +22,18 @@ module FlexColumns
       def _flex_columns_create_column_data(storage_string, data_source)
         ensure_setup!
 
+        storage = case column.type
+        when :binary, :text, :json then column.type
+        when :string then :text
+        else raise "Unknown storage type: #{column.type.inspect}"
+        end
+
         create_options = {
           :storage_string => storage_string,
           :data_source    => data_source,
           :unknown_fields => options[:unknown_fields] || :preserve,
           :length_limit   => column.limit,
-          :storage        => column.type == :binary ? :binary : :text,
+          :storage        => storage,
           :binary_header  => true,
           :null           => column.null
         }
