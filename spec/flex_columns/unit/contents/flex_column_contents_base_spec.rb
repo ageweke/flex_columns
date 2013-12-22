@@ -66,6 +66,9 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
           def to_s
             "whatevs"
           end
+          def inspect
+            "whatevs"
+          end
         end
         e = capture_exception(ArgumentError) { @klass.new(wrong_model_instance) }
         e.message.should match(/bongo/i)

@@ -150,7 +150,9 @@ module FlexColumns
       # * The column is non-NULL, and there's no data in it right now. (Saving it will populate it with an empty string.)
       def requires_serialization_on_save?(model)
         maybe_flex_object = model._flex_column_object_for(column_name, false)
-        (maybe_flex_object && maybe_flex_object.touched?) || ((! column.null) && (! model[column_name]))
+        out = true if maybe_flex_object && maybe_flex_object.touched?
+        out ||= true if ((! column.null) && (! model[column_name]))
+        out
       end
 
       # Are fields in this flex column private by default?
