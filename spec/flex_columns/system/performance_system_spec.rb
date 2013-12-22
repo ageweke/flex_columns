@@ -170,18 +170,18 @@ describe "FlexColumns performance" do
       # not even just setting it to the empty string again; as such, we're just going to give up on this example under
       # those circumstances, rather than trying to work around this (pretty broken) behavior that's also a pretty rare
       # edge case for us.
-      return if defined?(RUBY_ENGINE) && RUBY_ENGINE == 'jruby' && @dh.database_type == :mysql
+      unless defined?(RUBY_ENGINE) && RUBY_ENGINE == 'jruby' && @dh.database_type == :mysql
+        my_user = ::User.new
+        my_user.name = 'User 1'
+        my_user.save!
 
-      my_user = ::User.new
-      my_user.name = 'User 1'
-      my_user.save!
-
-      user_bd = ::UserBackdoor.find(my_user.id)
-      user_bd.name.should == 'User 1'
-      user_bd.text_attrs_nonnull.should == ""
-      user_bd.text_attrs_null.should == nil
-      user_bd.binary_attrs_nonnull.should == ""
-      user_bd.binary_attrs_null.should == nil
+        user_bd = ::UserBackdoor.find(my_user.id)
+        user_bd.name.should == 'User 1'
+        user_bd.text_attrs_nonnull.should == ""
+        user_bd.text_attrs_null.should == nil
+        user_bd.binary_attrs_nonnull.should == ""
+        user_bd.binary_attrs_null.should == nil
+      end
     end
 
     it "should store NULL or the empty string in the database, as appropriate, if there's no data left any more" do
