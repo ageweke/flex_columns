@@ -129,6 +129,15 @@ module FlexColumns
         field_contents_by_field_name.keys
       end
 
+      # Returns a representation of this data as a Hash. This should *not* be used in +flex_columns+ to manipulate
+      # data, as it does not contain a full representation of a column (in particular, unknown-field data is not
+      # represented in the returned Hash); however, it's useful to construct a string (e.g.,
+      # FlexColumnsContentsBase#inspect) to help with debugging.
+      def to_hash
+        deserialize_if_necessary!
+        field_contents_by_field_name.dup.with_indifferent_access
+      end
+
       # Does nothing, other than making sure the JSON has been deserialized. This therefore has the effect both of
       # ensuring that the stored data (if any) is valid, and also will remove any unknown keys (on save) if
       # +:unknown_fields+ was set to +:delete+.

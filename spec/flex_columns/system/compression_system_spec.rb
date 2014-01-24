@@ -99,6 +99,33 @@ describe "FlexColumns compression operations" do
     data.should_not match(/bar/)
   end
 
+  describe "#inspect" do
+    it "should decompress and deserialize data for #inspect on the column itself, but should abbreviate" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.foo = 'foo' * 1000
+      user.save!
+
+      user_again = ::User.find(user.id)
+      s = user_again.user_attributes.inspect
+      s.should match(/UserAttributesFlexContents/i)
+      s.should match(/foofoofoofoo/i)
+      s.length.should < 1000
+    end
+
+    it "should decompress and deserialize data for #inspect on the parent, too" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.foo = 'foo' * 1000
+      user.save!
+
+      user_again = ::User.find(user.id)
+      s = user_again.inspect
+      s.should match(/UserAttributesFlexContents/i)
+      s.should match(/foofoofoofoo/i)
+    end
+  end
+
   it "should read compressed data fine, even if told not to compress new data" do
     user = ::User.new
     user.name = 'User 1'

@@ -72,6 +72,25 @@ module FlexColumns
       @_flex_column_objects = { }
     end
 
+    # This little-know ActiveRecord method gets called to produce a string for #inspect for a particular attribute.
+    # Because the default implementation uses #read_attribute, if we don't override it, it will simply return our
+    # actual string in the database; if this is compressed data, this is meaningless to a programmer. So we override
+    # this to instead deserialize the column and call #inspect on the actual FlexColumnContentsBase object, which
+    # shows interesting information.
+    #
+    # **NOTE**: See the warning comment above FlexColumnContentsBase#inspect, which points out that this will
+    # deserialize the column if it hasn't already -- so calling this has a performance penalty. This should be fine,
+    # since calling #inspect in bulk isn't something a program should be doing in production mode anyway, but it's
+    # worth noting.
+    def attribute_for_inspect(attr_name)
+      cn =  self.class._all_flex_column_names
+      if cn.include?(attr_name.to_sym)
+        _flex_column_object_for(attr_name).inspect
+      else
+        super(attr_name)
+      end
+    end
+
     private
     # Returns the Hash that we keep flex-column objects in, indexed by column name.
     def _flex_column_objects

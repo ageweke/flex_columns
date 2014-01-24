@@ -224,6 +224,25 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
         @instance[:xxx].should == :yyy
       end
 
+      it "should return a useful string for #inspect" do
+        expect(@column_data).to receive(:to_hash).once.and_return({ :aaa => 'bbb', :ccc => 'ddd'})
+        i = @instance.inspect
+        i.should match(/aaa/)
+        i.should match(/bbb/)
+        i.should match(/ccc/)
+        i.should match(/ddd/)
+      end
+
+      it "should abbreviate that hash, if necessary" do
+        expect(@column_data).to receive(:to_hash).once.and_return({ :aaa => 'bbb', :ccc => ('ddd' * 1_000)})
+        i = @instance.inspect
+        i.should match(/aaa/)
+        i.should match(/bbb/)
+        i.should match(/ccc/)
+        i.should match(/ddddddddd/)
+        i.length.should < 1_000
+      end
+
       it "should delegate to the column data on []=" do
         expect(@column_data).to receive(:[]=).once.with(:xxx, :yyy).and_return(:zzz)
         (@instance[:xxx] = :yyy).should == :yyy

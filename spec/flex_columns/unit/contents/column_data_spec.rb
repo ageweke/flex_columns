@@ -159,13 +159,34 @@ describe FlexColumns::Contents::ColumnData do
       parsed['baz'].should == 'quux'
     end
 
-    it "should return JSON data with #to_json" do
-      json = @instance.to_json
-      parsed = JSON.parse(json)
-      parsed.keys.sort.should == %w{foo bar baz}.sort
-      parsed['foo'].should == 'bar'
-      parsed['bar'].should == 123
-      parsed['baz'].should == 'quux'
+    describe "#to_hash" do
+      it "should return a hash with the data in it, with indifferent access" do
+        h = @instance.to_hash
+        h.keys.sort.should == %w{foo bar baz}.sort
+        h['foo'].should == 'bar'
+        h['bar'].should == 123
+        h['baz'].should == 'quux'
+        h[:foo].should == 'bar'
+        h[:bar].should == 123
+        h[:baz].should == 'quux'
+      end
+
+      it "should deserialize if needed" do
+        h = new_with_string(@json_string).to_hash
+        h.keys.sort.should == %w{foo bar baz}.sort
+        h['foo'].should == 'bar'
+        h['bar'].should == 123
+        h['baz'].should == 'quux'
+      end
+
+      it "should not return unknown fields" do
+        h = new_with_string({ 'foo' => 'bar', 'baz' => 123, 'quux' => 'whatever' }.to_json).to_hash
+        h.keys.sort.should == %w{foo baz}.sort
+        h['foo'].should == 'bar'
+        h['baz'].should == 123
+        h['bar'].should be_nil
+        h['quux'].should be_nil
+      end
     end
 
     it "should accept a Hash as JSON, already parsed by the database stack" do

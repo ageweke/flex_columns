@@ -15,4 +15,4 @@ spec/reports
 test/tmp
 test/version_tmp
 tmp
-/spec_database_config.rb
+/spec_database_config.rb*

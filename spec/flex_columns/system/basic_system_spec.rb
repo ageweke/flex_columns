@@ -40,6 +40,32 @@ describe "FlexColumns basic operations" do
       user2.user_attributes.keys.should == [ :wants_email ]
     end
 
+    it "should return useful data for the column on #inspect, deserializing if necessary" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = 'whatEVER, yo'
+      user.save!
+
+      user_again = ::User.find(user.id)
+      s = user_again.user_attributes.inspect
+      s.should match(/UserAttributesFlexContents/i)
+      s.should match(/wants_email/i)
+      s.should match(/whatEVER, yo/)
+    end
+
+    it "should return useful data for the column on #inspect from the parent AR model" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = 'whatEVER, yo'
+      user.save!
+
+      user_again = ::User.find(user.id)
+      s = user_again.inspect
+      s.should match(/UserAttributesFlexContents/i)
+      s.should match(/wants_email/i)
+      s.should match(/whatEVER, yo/)
+    end
+
     it "should store its data as standard JSON" do
       user = ::User.new
       user.name = 'User 1'

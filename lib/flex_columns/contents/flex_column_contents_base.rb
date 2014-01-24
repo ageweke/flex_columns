@@ -139,6 +139,25 @@ module FlexColumns
         end
       end
 
+      INSPECT_MAXIMUM_LENGTH_FOR_ANY_ATTRIBUTE_VALUE = 100
+
+      # **NOTE**: This method *WILL* deserialize the contents of the column, if it hasn't already been deserialized.
+      # This is extremely useful for debugging, and almost certainly what you want, but if, for some reason, you
+      # call #inspect on every single instance of a flex-column you get back from the database, you'll incur a
+      # needless performance penalty. You have been warned.
+      def inspect
+        string_hash = { }
+        column_data.to_hash.each do |k,v|
+          v_string = v.to_s
+          if v_string.length > INSPECT_MAXIMUM_LENGTH_FOR_ANY_ATTRIBUTE_VALUE
+            v_string = "#{v_string[0..(INSPECT_MAXIMUM_LENGTH_FOR_ANY_ATTRIBUTE_VALUE - 1)]}..."
+          end
+          string_hash[k] = v_string
+        end
+
+        "<#{self.class.name}: #{string_hash.inspect}>"
+      end
+
       # Returns a JSON string representing the current contents of this flex column. Note that this is _not_ always
       # exactly what gets stored in the database, because of binary columns and compression; for that, use
       # #to_stored_data, below.
