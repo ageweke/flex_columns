@@ -490,19 +490,19 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     end
 
     describe "#requires_serialization_on_save?" do
-      it "should be true if there's an object and it has been touched" do
+      it "should be true if there's an object and it has been deserialized" do
         model = double("model")
         fco = double("fco")
         allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(fco)
-        allow(fco).to receive(:touched?).with().and_return(true)
+        allow(fco).to receive(:deserialized?).with().and_return(true)
         @klass.requires_serialization_on_save?(model).should be
       end
 
-      it "should be false if there's an object but it hasn't been touched" do
+      it "should be false if there's an object but it hasn't been deserialized" do
         model = double("model")
         fco = double("fco")
         allow(model).to receive(:_flex_column_object_for).with(:foo, false).and_return(fco)
-        allow(fco).to receive(:touched?).with().and_return(false)
+        allow(fco).to receive(:deserialized?).with().and_return(false)
         @klass.requires_serialization_on_save?(model).should_not be
       end
 

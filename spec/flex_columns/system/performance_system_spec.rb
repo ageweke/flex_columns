@@ -63,7 +63,7 @@ describe "FlexColumns performance" do
     @deserializations[0][:raw_data].should == user_again.user_attributes.to_json
   end
 
-  it "should not deserialize columns if they aren't touched" do
+  it "should not deserialize columns if they aren't accessed" do
     user = ::User.new
     user.name = 'User 1'
     user.wants_email = 'foo'

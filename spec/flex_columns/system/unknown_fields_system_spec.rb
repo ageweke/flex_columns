@@ -75,7 +75,7 @@ describe "FlexColumns unknown fields" do
     user_bd_again.some_unknown_attribute.should be_nil
   end
 
-  it "should not delete unknown fields if asked to, but we only read from the model" do
+  it "should delete unknown fields if asked to, even if we only read from the model" do
     @user_bd.wants_email = 'foo'
     @user_bd.save!
 
@@ -98,7 +98,7 @@ describe "FlexColumns unknown fields" do
 
     user_bd_again = ::UserBackdoor.find(@user_bd.id)
     user_bd_again.wants_email.should == 'foo'
-    user_bd_again.some_unknown_attribute.should == 'bongo'
+    user_bd_again.some_unknown_attribute.should_not be
   end
 
   it "should have a method that explicitly will purge unknown methods, even if deserialization hasn't happened for any other reason, but not before then" do

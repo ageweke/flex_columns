@@ -188,11 +188,11 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
           allow(@model_instance).to receive(:_flex_column_object_for).with(:fcn, false).and_return(@instance)
         end
 
-        it "should tell you if it's been touched" do
-          expect(@column_data).to receive(:touched?).once.with().and_return(true)
-          @instance.touched?.should be
-          expect(@column_data).to receive(:touched?).once.with().and_return(false)
-          @instance.touched?.should_not be
+        it "should tell you if it's been deserialized" do
+          expect(@column_data).to receive(:deserialized?).once.with().and_return(true)
+          @instance.deserialized?.should be
+          expect(@column_data).to receive(:deserialized?).once.with().and_return(false)
+          @instance.deserialized?.should_not be
         end
 
         it "should save if the class tells it to" do

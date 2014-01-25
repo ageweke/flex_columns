@@ -131,22 +131,16 @@ describe FlexColumns::Contents::ColumnData do
         lambda { instance.touch! }.should raise_error(FlexColumns::Errors::UnparseableJsonInDatabaseError)
       end
 
-      it "should not be touched if you simply read from it" do
-        @instance.touched?.should_not be
+      it "should be deserialized if you simply read from it" do
+        @instance.deserialized?.should_not be
         @instance[:foo]
-        @instance.touched?.should_not be
+        @instance.deserialized?.should be
       end
 
-      it "should not be touched if you set a field to the same thing" do
-        @instance.touched?.should_not be
-        @instance[:foo] = 'bar'
-        @instance.touched?.should_not be
-      end
-
-      it "should be touched if you set a field to something different" do
-        @instance.touched?.should_not be
+      it "should be deserialized if you set a field to something different" do
+        @instance.deserialized?.should_not be
         @instance[:foo] = 'baz'
-        @instance.touched?.should be
+        @instance.deserialized?.should be
       end
     end
 

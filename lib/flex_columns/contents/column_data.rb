@@ -80,7 +80,6 @@ module FlexColumns
 
         @field_contents_by_field_name = nil
         @unknown_field_contents_by_key = nil
-        @touched = false
       end
 
       # Returns the data for the given +field_name+. Raises FlexColumns::Errors::NoSuchFieldError if there is no field
@@ -108,8 +107,6 @@ module FlexColumns
         new_value = new_value.to_s if new_value.kind_of?(Symbol)
 
         old_value = field_contents_by_field_name[field_name]
-
-        @touched = true if old_value != new_value
 
         # We deliberately delete from the hash anything that's being set to +nil+; this is so that we don't end up just
         # binding keys to +nil+, and returning them in #keys, etc. (Yes, this means that you can't distinguish a key
@@ -143,12 +140,42 @@ module FlexColumns
       # +:unknown_fields+ was set to +:delete+.
       def touch!
         deserialize_if_necessary!
-        @touched = true
       end
 
-      # Has this object been modified in any way?
-      def touched?
-        !! @touched
+      # Has this object been deserialized? If it's been deserialized, then we need to do things like run validations
+      # on it, save it back to the database when someone calls #save! on the parent object, and so on.
+      #
+      # Not at all obvious: originally, we had a method called #touched? that let you know whether the given object
+      # had been changed at all. It simply got set on +#[]=+, above. The problem with this is that very frequently,
+      # +flex_columns+ is used to store complex data structures (because that's one of the things that's dramatically
+      # easier in a serialized JSON blob than in a traditional relational structure). But if you have an array stored,
+      # and you call #<< on it to append an element, then +#[]=+ never gets called at all -- because it's still the
+      # same object, just with different contents.
+      #
+      # We could have worked around this by saving off a copy of each field when we deserialized, then comparing them
+      # using a deep equality (#== should work just fine) to determine if they've changed. However, this adds very
+      # significant overhead to each and every single use of a +flex_column+ object, whether or not you rely on or
+      # care about this kind of tracking -- we would have to #dup every flex column field every single time we
+      # deserialized, and, if you have large objects in there, that can get extremely expensive.
+      #
+      # Since almost every object in Ruby is mutable -- even Strings -- there aren't really any easy wins here.
+      # Numbers are the only commonplace object that aren't, and it's not going to be a common use case that someone
+      # uses a +flex_column+ with fields that each simply store one single number. (Storing an array or a hash of
+      # numbers is much more common, but then you're talking about Arrays and Hashes, which are back to being mutable.)
+      #
+      # Another option would be to #freeze all of the fields on a flex column, thus requiring clients to reassign them
+      # with a new object if they wanted to change them at all. That, however, presents an API that most users would
+      # hate -- I don't want to say <tt>user.prefs_map = user.prefs_map.merge(:foo => bar)</tt>; I want to just say
+      # <tt>user.prefs_map[:foo] = bar</tt>.
+      #
+      # Instead, once we deserialize a field, we just assume that it has changed. While this may end up causing the
+      # client to do extra work at times, it's much higher-performance than doing the tracking every time.
+      #
+      # (There is definitely room to add code that would make this configurable, on a per-flex-column or even per-field
+      # basis. As always, patches are welcome; as of this writing, it seems likely that it might just not be an issue
+      # big enough to worry about.)
+      def deserialized?
+        !! field_contents_by_field_name
       end
 
       # Returns a String with the current contents of this object as JSON. (This will deserialize from JSON, if it
@@ -354,7 +381,7 @@ module FlexColumns
       # If we haven't yet deserialized the JSON string, do it now, and store the data appropriately. This also
       # checks for a validly-encoded string.
       def deserialize_if_necessary!
-        unless field_contents_by_field_name
+        unless deserialized?
           raw_data = storage_string || ''
 
           # PostgreSQL's JSON data type, combined with recent-enough adapters and ActiveRecord, will return JSON as a

@@ -40,6 +40,24 @@ describe "FlexColumns basic operations" do
       user2.user_attributes.keys.should == [ :wants_email ]
     end
 
+    # This test case was created from a found bug: we were assuming that unless you called "#{method}=" on one of
+    # the attributes of a flex column, then we didn't need to serialize and save the flex column. However, that's not
+    # true, for exactly the reasons seen below (maybe you modified an object that was referred to from the field,
+    # but didn't change that field itself). See also the comment above ColumnData#deserialized?.
+    it "should still save its data even if you change something nested down deep" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.user_attributes.wants_email = { 'foo' => { 'bar' => [ 1, 2, 3 ] } }
+      user.save!
+
+      user_again = ::User.find(user.id)
+      user_again.user_attributes.wants_email['foo']['bar'] << 4
+      user_again.save!
+
+      user_yet_again = ::User.find(user.id)
+      user_yet_again.user_attributes.wants_email['foo']['bar'].should == [ 1, 2, 3, 4 ]
+    end
+
     it "should return useful data for the column on #inspect, deserializing if necessary" do
       user = ::User.new
       user.name = 'User 1'
@@ -86,7 +104,7 @@ describe "FlexColumns basic operations" do
       contents['wants_email'].should == 'sometimes'
     end
 
-    it "should not modify that JSON if you don't write to it with a different value, but should if you touch it" do
+    it "should not modify that JSON if you don't touch it, but should if you do" do
       define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
 
       weirdly_spaced_json = '   {        "wants_email"  : "boop"    } '
@@ -98,15 +116,7 @@ describe "FlexColumns basic operations" do
 
       user = ::User.find(user_bd.id)
       user.name.should == 'User 1'
-      user.wants_email.should == 'boop'
-      user.wants_email = 'boop'
-      user.save!
-
-      user_bd_again = ::UserBackdoor.find(user_bd.id)
-      user_bd_again.name.should == 'User 1'
-      user_bd_again.user_attributes.should == weirdly_spaced_json
-
-      user.user_attributes.touch!
+      user.wants_email
       user.save!
 
       user_bd_again = ::UserBackdoor.find(user_bd.id)

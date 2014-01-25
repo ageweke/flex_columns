@@ -38,7 +38,7 @@ module FlexColumns
     # whether you've changed that particular attribute or not.
     def _flex_columns_before_validation!
       _all_present_flex_column_objects.each do |flex_column_object|
-        flex_column_object.before_validation! if flex_column_object.touched?
+        flex_column_object.before_validation!
       end
     end
 

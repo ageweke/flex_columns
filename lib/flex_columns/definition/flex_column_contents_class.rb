@@ -146,11 +146,11 @@ module FlexColumns
 
       # Given a model instance, do we need to save this column? This is true under one of two cases:
       #
-      # * Someone has changed ("touched") at least one of the flex-column fields (or called #touch! on it);
+      # * Someone has deserialized the column by accessing it (or calling #touch! on it);
       # * The column is non-NULL, and there's no data in it right now. (Saving it will populate it with an empty string.)
       def requires_serialization_on_save?(model)
         maybe_flex_object = model._flex_column_object_for(column_name, false)
-        out = true if maybe_flex_object && maybe_flex_object.touched?
+        out = true if maybe_flex_object && maybe_flex_object.deserialized?
         out ||= true if ((! column.null) && (! model[column_name]))
         out
       end
