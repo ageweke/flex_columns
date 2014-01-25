@@ -217,7 +217,8 @@ module FlexColumns
           end
         end
 
-        if length_limit && out.length > length_limit
+        actual_length = out ? out.length : 0
+        if length_limit && actual_length > length_limit
           raise FlexColumns::Errors::JsonTooLongError.new(data_source, length_limit, out)
         end
 

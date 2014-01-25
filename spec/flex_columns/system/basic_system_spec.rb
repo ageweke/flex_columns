@@ -40,6 +40,13 @@ describe "FlexColumns basic operations" do
       user2.user_attributes.keys.should == [ :wants_email ]
     end
 
+    it "shouldn't complain if there is no data, but you still touch a field" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.user_attributes.wants_email
+      user.save!
+    end
+
     # This test case was created from a found bug: we were assuming that unless you called "#{method}=" on one of
     # the attributes of a flex column, then we didn't need to serialize and save the flex column. However, that's not
     # true, for exactly the reasons seen below (maybe you modified an object that was referred to from the field,
