@@ -71,6 +71,13 @@ module FlexColumns
         end
       end
 
+      # See the comment above FlexColumns::HasFlexColumns#read_attribute_for_serialization -- this is responsible for
+      # correctly turning a flex-column object into a hash for serializing *the entire enclosing ActiveRecord model*.
+      # Most importantly, this method has NOTHING to do with our internal 'serialize a column as JSON' method.
+      def to_hash_for_serialization
+        @column_data.to_hash
+      end
+
       # Returns a Hash, appropriate for integration into the payload of an ActiveSupport::Notification call, that
       # describes the model instance we're created from (or raw String, if that's the case). This is used by the
       # calls made to ActiveSupport::Notifications when a flex-column object is serialized or deserialized, and is used

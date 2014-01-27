@@ -66,10 +66,26 @@ module FlexColumns
       out
     end
 
+    # When ActiveRecord serializes an entire ActiveRecord object (for example, if you call #to_json on it), it
+    # reads each column individually using this method -- which, in the default implementation, just calls #send.
+    # (Well, it's actually *aliased* to #send, but it has the same effect.)
+    #
+    # However, if you're serializing an ActiveRecord model that contains a flex column, you almost certainly just
+    # want that to behave as if the flex_column is a Hash, and serialize it that way. So we override it to do just
+    # that right here.
+    def read_attribute_for_serialization(attribute_name)
+      if self.class._has_flex_column_named?(attribute_name)
+        _flex_column_object_for(attribute_name).to_hash_for_serialization
+      else
+        super(attribute_name)
+      end
+    end
+
     # When you reload a model object, we should reload its flex-column objects, too.
     def reload(*args)
-      super(*args)
+      out = super(*args)
       @_flex_column_objects = { }
+      out
     end
 
     # This little-know ActiveRecord method gets called to produce a string for #inspect for a particular attribute.
@@ -112,6 +128,11 @@ module FlexColumns
       # What are the names of all flex columns defined on this model?
       def _all_flex_column_names
         _flex_column_classes.map(&:column_name)
+      end
+
+      # Does this model have a flex column with the given name?
+      def _has_flex_column_named?(column_name)
+        _all_flex_column_names.include?(_flex_column_normalize_name(column_name))
       end
 
       # Normalizes the name of a flex column, so we're consistent when using it for things like hash keys, no matter

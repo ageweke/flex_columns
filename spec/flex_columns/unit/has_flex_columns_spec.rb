@@ -163,6 +163,21 @@ describe FlexColumns::HasFlexColumns do
       @klass.flex_column(:bar)
     end
 
+    describe "#read_attribute_for_serialization" do
+      it "should call through to the flex-column object for flex columns, and flex columns only" do
+        instance = @klass.new
+
+        fcc_foo_instance = double("fcc_foo_instance")
+        expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
+        hash_for_serialization = double("hash_for_serialization")
+        expect(fcc_foo_instance).to receive(:to_hash_for_serialization).once.with().and_return(hash_for_serialization)
+
+        instance.read_attribute_for_serialization('foo').should be(hash_for_serialization)
+
+        lambda { instance.read_attribute_for_serialization('baz') }.should raise_error(NoMethodError, /no superclass method/i)
+      end
+    end
+
     it "should return the same DynamicMethodsModule every time" do
       @klass._flex_column_dynamic_methods_module.should be(@dmm)
       @klass._flex_column_dynamic_methods_module.should be(@dmm)
@@ -282,11 +297,12 @@ describe FlexColumns::HasFlexColumns do
       instance._flex_column_object_for(' bAr ').should be(fcc_bar_instance)
     end
 
-    it "should re-create flex-column objects on reload, and call super" do
+    it "should re-create flex-column objects on reload, and call super and return its value" do
       @superclass.class_eval do
         def reload
           @reloads ||= 0
           @reloads += 1
+          :reload_return_yo
         end
 
         def reloads
@@ -308,7 +324,7 @@ describe FlexColumns::HasFlexColumns do
       instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
 
       instance.reloads.should == 0
-      instance.reload
+      instance.reload.should == :reload_return_yo
       instance.reloads.should == 1
 
       fcc_foo_instance_2 = double("fcc_foo_instance_2")
@@ -322,6 +338,15 @@ describe FlexColumns::HasFlexColumns do
 
     it "should tell you what flex-column names have been defined" do
       @klass._all_flex_column_names.sort_by(&:to_s).should == [ :foo, :bar ].sort_by(&:to_s)
+    end
+
+    it "should answer whether a flex-column name has been defined" do
+      @klass._has_flex_column_named?(:foo).should be
+      @klass._has_flex_column_named?('foo').should be
+      @klass._has_flex_column_named?(:bar).should be
+      @klass._has_flex_column_named?('bar').should be
+      @klass._has_flex_column_named?(:baz).should_not be
+      @klass._has_flex_column_named?('baz').should_not be
     end
 
     it "should normalize column names properly" do

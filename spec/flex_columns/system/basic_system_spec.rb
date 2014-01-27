@@ -250,6 +250,45 @@ describe "FlexColumns basic operations" do
       output['foo'].should == 47.2
     end
 
+    it "should allow you to call #reload, and return that same record" do
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = [ 1, 2, 3 ]
+      user.save!
+
+      user.name = 'User 2'
+      user.wants_email = 'bonko'
+
+      new_user = user.reload
+      new_user.name.should == 'User 1'
+      new_user.wants_email.should == [ 1, 2, 3 ]
+      new_user.id.should == user.id
+
+      user.name.should == 'User 1'
+      user.wants_email.should == [ 1, 2, 3 ]
+
+      new_user.should be(user)
+    end
+
+    it "should let you turn an entire ActiveRecord object into JSON properly, treating a flex column as a Hash" do
+      user = ::User.new
+      user.id = 12345
+      user.name = 'User 1'
+      user.wants_email = [ 1, 2, 3 ]
+
+      user_json = user.to_json
+      parsed = JSON.parse(user_json)
+
+      parsed.keys.sort.should == %w{id name user_attributes more_attributes}.sort
+      parsed['id'].should == 12345
+      parsed['name'].should == 'User 1'
+      h = parsed['user_attributes']
+      h.class.should == Hash
+      h.keys.sort.should == %w{wants_email}
+      h['wants_email'].should == [ 1, 2, 3 ]
+      [ nil, { } ].include?(parsed['more_attributes']).should be
+    end
+
     it "should remove keys entirely when they're set to nil, but not if they're set to false" do
       define_model_class(:User, 'flexcols_spec_users') do
         flex_column :user_attributes do
