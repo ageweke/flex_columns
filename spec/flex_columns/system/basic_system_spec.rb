@@ -270,23 +270,35 @@ describe "FlexColumns basic operations" do
       new_user.should be(user)
     end
 
-    it "should let you turn an entire ActiveRecord object into JSON properly, treating a flex column as a Hash" do
-      user = ::User.new
-      user.id = 12345
-      user.name = 'User 1'
-      user.wants_email = [ 1, 2, 3 ]
+    # JSON.dump() simply doesn't work at all with ActiveRecord objects in earlier ActiveRecord versions; see:
+    # http://stackoverflow.com/questions/8406924/json-dump-on-any-activerecord-object-fails
+    if ActiveRecord::VERSION::MAJOR >= 4 ||
+      (ActiveRecord::VERSION::MAJOR == 3 && ActiveRecord::VERSION::MINOR >= 1)
+      it "should let you turn an entire ActiveRecord object into JSON properly, treating a flex column as a Hash" do
+        user = ::User.new
+        user.id = 12345
+        user.name = 'User 1'
+        user.wants_email = [ 1, 2, 3 ]
 
-      user_json = user.to_json
-      parsed = JSON.parse(user_json)
+        $stderr.puts "ATTRIBUTES: #{user.attributes.keys.sort.inspect}"
 
-      parsed.keys.sort.should == %w{id name user_attributes more_attributes}.sort
-      parsed['id'].should == 12345
-      parsed['name'].should == 'User 1'
-      h = parsed['user_attributes']
-      h.class.should == Hash
-      h.keys.sort.should == %w{wants_email}
-      h['wants_email'].should == [ 1, 2, 3 ]
-      [ nil, { } ].include?(parsed['more_attributes']).should be
+        user_json = JSON.dump(user)
+        parsed = JSON.parse(user_json)
+
+        # ActiveRecord::Base.include_root_in_json may default to different things in different versions of
+        # ActiveRecord; here, we accept JSON in either format.
+        base = parsed
+        base = parsed['user'] if base.keys == %w{user}
+
+        base.keys.sort.should == %w{id name user_attributes more_attributes}.sort
+        base['id'].should == 12345
+        base['name'].should == 'User 1'
+        h = base['user_attributes']
+        h.class.should == Hash
+        h.keys.sort.should == %w{wants_email}
+        h['wants_email'].should == [ 1, 2, 3 ]
+        [ nil, { } ].include?(base['more_attributes']).should be
+      end
     end
 
     it "should remove keys entirely when they're set to nil, but not if they're set to false" do

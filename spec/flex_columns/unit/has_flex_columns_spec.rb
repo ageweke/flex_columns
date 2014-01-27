@@ -165,6 +165,12 @@ describe FlexColumns::HasFlexColumns do
 
     describe "#read_attribute_for_serialization" do
       it "should call through to the flex-column object for flex columns, and flex columns only" do
+        @superclass.class_eval do
+          def read_attribute_for_serialization(attribute_name)
+            "rafs_#{attribute_name}_rafs"
+          end
+        end
+
         instance = @klass.new
 
         fcc_foo_instance = double("fcc_foo_instance")
@@ -173,8 +179,38 @@ describe FlexColumns::HasFlexColumns do
         expect(fcc_foo_instance).to receive(:to_hash_for_serialization).once.with().and_return(hash_for_serialization)
 
         instance.read_attribute_for_serialization('foo').should be(hash_for_serialization)
+        instance.read_attribute_for_serialization('baz').should == "rafs_baz_rafs"
+      end
+    end
 
-        lambda { instance.read_attribute_for_serialization('baz') }.should raise_error(NoMethodError, /no superclass method/i)
+    describe "#as_json" do
+      it "should call through to the flex-column object for flex columns, and flex columns only" do
+        @superclass.class_eval do
+          def as_json(options)
+            @superclass_as_json_options ||= [ ]
+            @superclass_as_json_options << options
+            { :z => 123, :bbb => 456}
+          end
+        end
+        instance = @klass.new
+
+        fcc_foo_instance = double("fcc_foo_instance")
+        expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
+        expect(fcc_foo_instance).to receive(:to_hash_for_serialization).once.with().and_return({ :aaa => 111, :bbb => 222 })
+
+        fcc_bar_instance = double("fcc_bar_instance")
+        expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
+        expect(fcc_bar_instance).to receive(:to_hash_for_serialization).once.with().and_return({ :aaa => 234, :ccc => 'xxx' })
+
+        allow(instance).to receive(:include_root_in_json).with().and_return(false)
+
+        instance.as_json.should == { :z => 123, :bbb => 456,
+          :foo => { :aaa => 111, :bbb => 222 },
+          :bar => { :aaa => 234, :ccc => 'xxx' }
+        }
+        instance.instance_variable_get("@superclass_as_json_options").should == [
+          { :except => [ :foo, :bar ] }
+        ]
       end
     end
 

@@ -173,13 +173,14 @@ describe FlexColumns::Contents::FlexColumnContentsBase do
       end
     end
 
-    describe "#to_hash_for_serialization" do
-      it "should return ColumnData#to_hash_for_serialization" do
+    describe "JSON serialization" do
+      it "should return ColumnData#to_hash_for_serialization for #to_hash_for_serialization and #as_json" do
         expect_column_data_creation(@json_string)
         @instance = @klass.new(@model_instance)
 
-        expect(@column_data).to receive(:to_hash).once.and_return({ :a => :b, :c => :d })
+        allow(@column_data).to receive(:to_hash).and_return({ :a => :b, :c => :d })
         @instance.to_hash_for_serialization.should == { :a => :b, :c => :d }
+        @instance.as_json.should == { :a => :b, :c => :d }
       end
     end
 

@@ -81,6 +81,27 @@ module FlexColumns
       end
     end
 
+    # See above. We're actually overriding *both* methods, because #read_attribute_for_serialization doesn't exist
+    # in ActiveRecord 3.0.x.
+    def as_json(options = { })
+      flex_column_names = self.class._all_flex_column_names
+      out = super(:except => flex_column_names)
+
+      flex_columns_hash = { }
+      flex_column_names.each do |column_name|
+        hash = _flex_column_object_for(column_name).to_hash_for_serialization
+        flex_columns_hash[column_name] = hash unless hash.empty?
+      end
+
+      if include_root_in_json && out.keys.length == 1
+        out[out.keys.first].merge!(flex_columns_hash)
+      else
+        out.merge!(flex_columns_hash)
+      end
+
+      out
+    end
+
     # When you reload a model object, we should reload its flex-column objects, too.
     def reload(*args)
       out = super(*args)
