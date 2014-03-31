@@ -5,28 +5,13 @@ describe FlexColumns::Including::IncludeFlexColumns do
     @klass = Class.new { include FlexColumns::Including::IncludeFlexColumns }
   end
 
-  describe "#_flex_column_object_for" do
-    it "should return the superclass value if it has one" do
-      superclass = Class.new do
-        def _flex_column_object_for(column_name)
-          "XX#{column_name}YY"
-        end
-      end
-
-      klass = Class.new(superclass) do
-        include FlexColumns::Including::IncludeFlexColumns
-      end
-
-      instance = klass.new
-      instance._flex_column_object_for("foobar").should == "XXfoobarYY"
-    end
-
+  describe "#_flex_column_included_object_for" do
     it "should raise an error if there is no appropriate association" do
       allow(@klass).to receive(:_flex_column_is_included_from).with(:foo).and_return(nil)
       allow(@klass).to receive(:name).with().and_return("klassname")
       instance = @klass.new
 
-      lambda { instance._flex_column_object_for(:foo) }.should raise_error(FlexColumns::Errors::NoSuchColumnError, /klassname.*foo/i)
+      lambda { instance._flex_column_included_object_for(:foo) }.should raise_error(FlexColumns::Errors::NoSuchColumnError, /klassname.*foo/i)
     end
 
     it "should invoke the right method on the right object if the association is already there" do
@@ -37,7 +22,7 @@ describe FlexColumns::Including::IncludeFlexColumns do
       allow(instance).to receive(:assocname).with().and_return(association_object)
       allow(association_object).to receive(:colname).and_return(:baz)
 
-      instance._flex_column_object_for(:colname).should == :baz
+      instance._flex_column_included_object_for(:colname).should == :baz
     end
 
     it "should create the associated object if necessary" do
@@ -49,7 +34,7 @@ describe FlexColumns::Including::IncludeFlexColumns do
       allow(instance).to receive(:build_assocname).with().and_return(association_object)
       allow(association_object).to receive(:colname).and_return(:baz)
 
-      instance._flex_column_object_for(:colname).should == :baz
+      instance._flex_column_included_object_for(:colname).should == :baz
     end
   end
 

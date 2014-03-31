@@ -26,6 +26,14 @@ describe FlexColumns::HasFlexColumns do
         def before_save_calls
           @_before_save_calls
         end
+
+        def table_exists?
+          true
+        end
+      end
+
+      def _flex_column_object_for(column_name, create_if_needed = true)
+        _flex_column_owned_object_for(column_name, create_if_needed)
       end
     end
 
@@ -52,6 +60,11 @@ describe FlexColumns::HasFlexColumns do
   end
 
   describe "#flex_column" do
+    it "should do nothing if the table doesn't exist" do
+      allow(@klass).to receive(:table_exists?).with().and_return(false)
+      @klass.flex_column('foo')
+    end
+
     it "should normalize the name of the column" do
       fcc = double("fcc")
       expect(Class).to receive(:new).once.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc)
@@ -225,7 +238,7 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_foo_instance = double("fcc_foo_instance")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
       allow(fcc_foo_instance).to receive(:deserialized?).with().and_return(false)
 
       expect(fcc_foo_instance).to receive(:before_validation!).once.with()
@@ -234,7 +247,7 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_bar_instance = double("fcc_bar_instance")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance)
       allow(fcc_bar_instance).to receive(:deserialized?).with().and_return(true)
 
       expect(fcc_foo_instance).to receive(:before_validation!).once.with()
@@ -257,7 +270,7 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_foo_instance = double("fcc_foo_instance")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
       allow(@fcc_foo).to receive(:requires_serialization_on_save?).with(instance).and_return(false)
 
       instance._flex_columns_before_save!
@@ -265,7 +278,7 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_bar_instance = double("fcc_bar_instance")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance)
       allow(@fcc_bar).to receive(:requires_serialization_on_save?).with(instance).and_return(true)
 
       expect(fcc_bar_instance).to receive(:before_save!).once.with()
@@ -323,14 +336,14 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_foo_instance = double("fcc_foo_instance")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
 
       fcc_bar_instance = double("fcc_bar_instance")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance)
 
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
-      instance._flex_column_object_for(' bAr ').should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(' bAr ').should be(fcc_bar_instance)
     end
 
     it "should re-create flex-column objects on reload, and call super and return its value" do
@@ -350,14 +363,14 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_foo_instance = double("fcc_foo_instance")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance)
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
 
       fcc_bar_instance = double("fcc_bar_instance")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance)
 
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance)
 
       instance.reloads.should == 0
       instance.reload.should == :reload_return_yo
@@ -365,11 +378,11 @@ describe FlexColumns::HasFlexColumns do
 
       fcc_foo_instance_2 = double("fcc_foo_instance_2")
       expect(@fcc_foo).to receive(:new).once.with(instance).and_return(fcc_foo_instance_2)
-      instance._flex_column_object_for(:foo).should be(fcc_foo_instance_2)
+      instance._flex_column_owned_object_for(:foo).should be(fcc_foo_instance_2)
 
       fcc_bar_instance_2 = double("fcc_bar_instance_2")
       expect(@fcc_bar).to receive(:new).once.with(instance).and_return(fcc_bar_instance_2)
-      instance._flex_column_object_for(:bar).should be(fcc_bar_instance_2)
+      instance._flex_column_owned_object_for(:bar).should be(fcc_bar_instance_2)
     end
 
     it "should tell you what flex-column names have been defined" do
@@ -405,24 +418,6 @@ describe FlexColumns::HasFlexColumns do
       fcc_bar_instance_2 = double("fcc_bar_instance_2")
       expect(@fcc_bar).to receive(:new).once.with(" JSON string ").and_return(fcc_bar_instance_2)
       @klass.create_flex_objects_from(:bar, [ nil, " JSON string " ]).should == [ fcc_bar_instance_1, fcc_bar_instance_2 ]
-    end
-  end
-
-  describe "flex-column objects" do
-    it "should prefer to just return super from _flex_column_object_for" do
-      superclass = Class.new do
-        def _flex_column_object_for(x)
-          "A_#{x}_Z"
-        end
-      end
-
-      subclass = Class.new(superclass)
-      allow(subclass).to receive(:before_validation).with(:_flex_columns_before_validation!)
-      allow(subclass).to receive(:before_save).with(:_flex_columns_before_save!)
-      subclass.send(:include, FlexColumns::HasFlexColumns)
-
-      instance = subclass.new
-      instance._flex_column_object_for(:foo).should == "A_foo_Z"
     end
   end
 end

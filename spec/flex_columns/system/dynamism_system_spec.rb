@@ -15,6 +15,17 @@ describe "FlexColumns basic operations" do
     drop_standard_system_spec_tables!
   end
 
+  it "should not blow up if the underlying table doesn't exist" do
+    class ::Foo < ::ActiveRecord::Base
+      self.table_name = 'flexcols_does_not_exist'
+
+      flex_column :foo do
+        field :att1
+        field :att2
+      end
+    end
+  end
+
   it "should let you redefine flex columns, and obey the new settings" do
     class ::User < ::ActiveRecord::Base
       self.table_name = 'flexcols_spec_users'

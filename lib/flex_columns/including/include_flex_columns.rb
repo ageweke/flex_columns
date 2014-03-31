@@ -49,7 +49,8 @@ module FlexColumns
       # Make sure our ClassMethods module gets +extend+ed into any class that +include+s us.
       extend ActiveSupport::Concern
 
-      # This is the method that gets called by generated delegated methods, and called in order to retrieve the
+      # This is the method that gets called by generated delegated methods via
+      # FlexColumns::ActiveRecord::Base#_flex_column_object_for, and called in order to retrieve the
       # correct flex-column object for a column. In other words, the generated method User#background_color looks
       # something like:
       #
@@ -57,24 +58,7 @@ module FlexColumns
       #       flex_column_object = _flex_column_object_for(:details)
       #       flex_column_object.background_color
       #     end
-      #
-      # (We do this partially so that the exact same method definition works for UserDetail and for User; _i.e._,
-      # whether you're running on a class that itself has a flex column, or on a class that simply is including another
-      # class's flex columns, #_flex_column_object_for will get you the right object.)
-      #
-      # There's only one nasty case to deal with here: what if User has its own flex column +detail+? In such a case, we
-      # want to return the flex-column object that's defined for the column the class has itself, not for the one it's
-      # including.
-      def _flex_column_object_for(column_name)
-        # This is the "nasty case", above.
-        begin
-          return super(column_name)
-        rescue NoMethodError
-          # ok
-        rescue FlexColumns::Errors::NoSuchColumnError
-          # ok
-        end
-
+      def _flex_column_included_object_for(column_name)
         # Fetch the association that this column is included from.
         association = self.class._flex_column_is_included_from(column_name)
 

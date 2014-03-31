@@ -12,6 +12,21 @@ module FlexColumns
     module Base
       extend ActiveSupport::Concern
 
+      # There are two ways you can end up with a flex-column object for a particular column name: either because your
+      # model class declared that column as a flex column directly, or because you included flex columns from a model
+      # that has that column declared as a flex column. This method allows us to dispatch to either, and correctly
+      # returns the 'owned' object in preference if necessary.
+      #
+      # We used to use some complex magic with +super+ and defined a method of this name both in
+      # FlexColumns::Including::IncludeFlexColumns and FlexColumns::HasFlexColumns, but Rails 4.0.3 or 4.0.4 broke that
+      # due to some rejiggery in ActiveRecord::Base#method_missing. This seems like a significantly cleaner approach
+      # anyway.
+      def _flex_column_object_for(column_name, create_if_needed = true)
+        return _flex_column_owned_object_for(column_name, create_if_needed) if respond_to?(:_flex_column_owned_object_for)
+        return _flex_column_included_object_for(column_name) if respond_to?(:_flex_column_included_object_for)
+        raise "FlexColumns: class #{self.class.name} seems to have no flex-column object for column #{column_name.inspect}, even though it internally asked for one; this is almost certainly a bug in the FlexColumns RubyGem. Please report it, and accept our apologies."
+      end
+
       module ClassMethods
         # Does this class have any flex columns? FlexColumns::HasFlexColumns overrides this to return +true+.
         def has_any_flex_columns?

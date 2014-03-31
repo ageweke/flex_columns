@@ -45,18 +45,10 @@ module FlexColumns
     # Returns the correct flex-column object for the given column name. This simply creates an instance of the
     # appropriate flex-column class, and saves it away so it will be returned again if someone requests the object for
     # the same column later.
-    def _flex_column_object_for(column_name, create_if_needed = true)
-      # It's possible to end up with two copies of this method on a class, if that class both has a flex column of its
-      # own _and_ includes one via FlexColumns::Including::IncludeFlexColumns#include_flex_columns_from. If so, we want
-      # each method to defer to the other one, so that both will work.
-      begin
-        return super(column_name)
-      rescue NoMethodError
-        # ok
-      rescue FlexColumns::Errors::NoSuchColumnError
-        # ok
-      end
-
+    #
+    # This method almost never gets invoked directly; instead, everything calls it via
+    # FlexColumns::ActiveRecord::Base#_flex_column_object_for.
+    def _flex_column_owned_object_for(column_name, create_if_needed = true)
       column_name = self.class._flex_column_normalize_name(column_name)
 
       out = _flex_column_objects[column_name]
@@ -185,6 +177,8 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
       # FlexColumns::Definition::FlexColumnContentsClass#setup!, and so can contain any of the options that that method
       # accepts. The block, if passed, will be evaluated in the context of the generated class.
       def flex_column(flex_column_name, options = { }, &block)
+        return unless table_exists?
+
         flex_column_name = _flex_column_normalize_name(flex_column_name)
 
         new_class = Class.new(FlexColumns::Contents::FlexColumnContentsBase)
