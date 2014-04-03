@@ -1,5 +1,10 @@
 # `flex_columns` Changelog
 
+## 1.0.5, 2014-04-03
+
+* Fixed an issue where boolean fields would fail to validate if `:null => false` was passed and their value was `false`.
+* Fixed an issue where integer fields would fail to validate if `nil` was allowed (that is, `:null => false` was _not_ passed) and yet `nil` was stored in them.
+
 ## 1.0.4, 2014-03-31
 
 * Fixed an incompatibility with Rails 4.0.3 or 4.0.4 due to a change in the way ActiveRecord::Base#method missing works. The way we were handling this (by double-implementing `_flex_column_object_for` and trying to use `super` to delegate one to the other) was pretty gross, anyway; this fix is much more solid.

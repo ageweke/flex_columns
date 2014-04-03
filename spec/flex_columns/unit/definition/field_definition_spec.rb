@@ -40,7 +40,7 @@ describe FlexColumns::Definition::FieldDefinition do
     end
 
     it "should raise an error if there are additional arguments" do
-      expect(@flex_column_class).to receive(:validates).once.with(:foo, { :numericality => { :only_integer => true }})
+      expect(@flex_column_class).to receive(:validates).once.with(:foo, { :numericality => { :only_integer => true }, :allow_nil => true})
       lambda { klass.new(@flex_column_class, :foo, [ :integer, :bar ], { }) }.should raise_error(ArgumentError)
     end
 
@@ -70,7 +70,7 @@ describe FlexColumns::Definition::FieldDefinition do
       end
 
       it "should validate integers properly" do
-        expect_validation(:integer, { :numericality => { :only_integer => true } })
+        expect_validation(:integer, { :numericality => { :only_integer => true }, :allow_nil => true })
       end
 
       it "should validate floats properly" do

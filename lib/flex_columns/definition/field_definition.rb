@@ -206,12 +206,12 @@ module FlexColumns
       # Given any additional arguments after the name of the field (e.g., <tt>field :foo, :integer</tt>), apply them
       # as appropriate. Currently, the only kind of accepted additional argument is a type.
       def apply_additional_arguments(additional_arguments)
-        type = additional_arguments.shift
-        if type
+        @type = additional_arguments.shift
+        if @type
           begin
-            send("apply_validations_for_#{type}")
+            send("apply_validations_for_#{@type}")
           rescue NoMethodError => nme
-            raise ArgumentError, "Unknown type: #{type.inspect}"
+            raise ArgumentError, "Unknown type: #{@type.inspect}"
           end
         end
 
@@ -220,10 +220,16 @@ module FlexColumns
         end
       end
 
+      def not_nullable?
+        options.has_key?(:null) && (! options[:null])
+      end
+
       # Apply the correct validations for a field of type :integer. (Called from #apply_additional_arguments via
       # metaprogramming.)
       def apply_validations_for_integer
-        flex_column_class.validates field_name, :numericality => { :only_integer => true }
+        options = { :numericality => { :only_integer => true } }
+        options[:allow_nil] = true unless not_nullable?
+        flex_column_class.validates field_name, options
       end
 
       # Apply the correct validations for a field of type :string. (Called from #apply_additional_arguments via
@@ -285,13 +291,19 @@ module FlexColumns
       # Apply the correct validations for a field of type :boolean. (Called from #apply_additional_arguments via
       # metaprogramming.)
       def apply_validations_for_boolean
-        flex_column_class.validates field_name, :inclusion => { :in => [ true, false, nil ] }
+        value_set = [ true, false ]
+        value_set << nil unless not_nullable?
+        flex_column_class.validates field_name, :inclusion => { :in => value_set }
+      end
+
+      def skip_not_nullable_validation_due_to_type?
+        [ :boolean ].include?(@type)
       end
 
       # Applies any validations resulting from options to this class (but not types; they're handled by
       # #apply_additional_arguments, above). Currently, this applies validations for +:null+, +:enum+, and +:limit+.
       def apply_validations!
-        if options.has_key?(:null) && (! options[:null])
+        if not_nullable? && (! skip_not_nullable_validation_due_to_type?)
           flex_column_class.validates field_name, :presence => true
         end
 

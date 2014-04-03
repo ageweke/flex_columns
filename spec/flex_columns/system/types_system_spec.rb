@@ -18,6 +18,7 @@ describe "FlexColumns basic operations" do
   def should_fail_validation(field, value, pattern = nil)
     object = ::User.new
     object.some_integer = 123
+    object.some_boolean_that_is_not_nullable = false
 
     object.send("#{field}=", value)
 
@@ -46,6 +47,9 @@ describe "FlexColumns basic operations" do
         field :some_timestamp, :timestamp
         field :some_boolean, :boolean
         field :some_enum, :enum => [ 'foo', 'bar', 'baz', nil ]
+
+        field :some_integer_that_is_nullable, :integer
+        field :some_boolean_that_is_not_nullable, :boolean, :null => false
       end
     end
 
@@ -60,6 +64,8 @@ describe "FlexColumns basic operations" do
     should_fail_validation(:some_timestamp, "foo", /must be a Time/i)
     should_fail_validation(:some_boolean, "true", /is not included in the list/i)
     should_fail_validation(:some_enum, "quux", /is not included in the list/i)
+    should_fail_validation(:some_integer_that_is_nullable, "quux", /is not a number/i)
+    should_fail_validation(:some_boolean_that_is_not_nullable, nil, /is not included in the list/i)
 
     user = ::User.new
     user.name = 'User 1'
@@ -75,6 +81,7 @@ describe "FlexColumns basic operations" do
     user.user_attributes.some_timestamp = 1.minute.from_now
     user.user_attributes.some_boolean = true
     user.user_attributes.some_enum = 'foo'
+    user.user_attributes.some_boolean_that_is_not_nullable = false
 
     user.valid?.should be
 
@@ -88,6 +95,9 @@ describe "FlexColumns basic operations" do
     user.valid?.should be
 
     user.user_attributes.some_string = :bonk
+    user.valid?.should be
+
+    user.user_attributes.some_boolean = false
     user.valid?.should be
   end
 end
