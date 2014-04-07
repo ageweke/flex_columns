@@ -30,6 +30,10 @@ describe FlexColumns::HasFlexColumns do
         def table_exists?
           true
         end
+
+        def reset_column_information
+          # nothing here
+        end
       end
 
       def _flex_column_object_for(column_name, create_if_needed = true)
@@ -57,6 +61,39 @@ describe FlexColumns::HasFlexColumns do
 
   it "should say it has flex columns" do
     @klass.has_any_flex_columns?.should be
+  end
+
+  describe "#_flex_columns_redefine_all_methods" do
+    it "should remove all methods on the module, and then add them back" do
+      dmm = double("dmm")
+      expect(FlexColumns::Util::DynamicMethodsModule).to receive(:new).once.with(@klass, :FlexColumnsDynamicMethods).and_return(dmm)
+
+      fcc1 = double("fcc1", :column_name => :foo)
+      expect(Class).to receive(:new).once.ordered.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc1)
+      expect(fcc1).to receive(:setup!).once.ordered.with(@klass, :foo, { })
+
+      expect(dmm).to receive(:remove_all_methods!).once.ordered.with()
+      expect(fcc1).to receive(:sync_methods!).once.ordered.with()
+
+      @klass.flex_column(:foo)
+
+      fcc2 = double("fcc2", :column_name => :bar)
+      expect(Class).to receive(:new).once.ordered.with(FlexColumns::Contents::FlexColumnContentsBase).and_return(fcc2)
+      expect(fcc2).to receive(:setup!).once.ordered.with(@klass, :bar, { })
+
+      expect(dmm).to receive(:remove_all_methods!).once.ordered.with()
+      expect(fcc1).to receive(:sync_methods!).once.ordered.with()
+      expect(fcc2).to receive(:sync_methods!).once.ordered.with()
+
+      @klass.flex_column(:bar)
+
+
+      expect(dmm).to receive(:remove_all_methods!).once.ordered.with()
+      expect(fcc1).to receive(:sync_methods!).once.ordered.with()
+      expect(fcc2).to receive(:sync_methods!).once.ordered.with()
+
+      @klass._flex_columns_redefine_all_methods!
+    end
   end
 
   describe "#flex_column" do

@@ -1,3 +1,5 @@
+require 'flex_columns/definition/fake_column'
+
 module FlexColumns
   module Definition
     # When you declare a flex column, we actually generate a brand-new Class for that column; instances of that flex
@@ -198,25 +200,11 @@ module FlexColumns
 
         raise ArgumentError, "Invalid column name: #{column_name.inspect}" unless column_name.kind_of?(Symbol)
 
-        column = model_class.columns.detect { |c| c.name.to_s == column_name.to_s }
-        unless column
-          raise FlexColumns::Errors::NoSuchColumnError, %{You're trying to define a flex column #{column_name.inspect}, but
-  the model you're defining it on, #{model_class.name}, seems to have no column
-  named that.
-
-  It has columns named: #{model_class.columns.map(&:name).sort_by(&:to_s).join(", ")}.}
-        end
-
-        unless column.type == :binary || column.text? || column.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
-          raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
-  that column (on model #{model_class.name}) isn't of a type that accepts text.
-  That column is of type: #{column.type.inspect}.}
-        end
+        @model_class = model_class
+        @column = find_column(column_name)
 
         validate_options(options)
 
-        @model_class = model_class
-        @column = column
         @options = options
         @field_set = FlexColumns::Definition::FieldSet.new(self)
 
@@ -230,6 +218,14 @@ module FlexColumns
         block_result = class_eval(&block) if block
         @custom_methods = (instance_methods - methods_before).map(&:to_sym)
         block_result
+      end
+
+      # This method gets called when ActiveRecord::Base.reset_column_information is called on the underlying model;
+      # this simply updates our notion of what column is present. Most importantly, this will correctly switch us from
+      # a table-does-not-exist state to a table-exists state (if you migrate the table in), but it also will correctly
+      # switch from one column type to another, etc.
+      def reset_column_information
+        @column = find_column(column_name)
       end
 
       # Tells this class to re-publish all its methods to the DynamicMethodsModule it uses internally, and to the
@@ -273,6 +269,40 @@ module FlexColumns
             dynamic_methods_module.private(custom_method) if options[:visibility] == :private
           end
         end
+      end
+
+      # Given the name of a column, finds the column on the model and makes sure it complies with our
+      # requirements for columns we can store data in.
+      #
+      # However, if the underlying table doesn't currently exist, this creates a "fake" column object and returns it;
+      # this fake column object responds to just enough methods that we can use it successfully in this gem. This is
+      # used so that we can define flex columns on a model for a table that doesn't exist yet (typically, because it
+      # hasn't been migrated in yet), and effectively upgrade it using .reset_column_information, above, when it
+      # does exist.
+      def find_column(column_name)
+        return create_temporary_fake_column(column_name) if (! @model_class.table_exists?)
+
+        out = model_class.columns.detect { |c| c.name.to_s == column_name.to_s }
+        unless out
+          raise FlexColumns::Errors::NoSuchColumnError, %{You're trying to define a flex column #{column_name.inspect}, but
+the model you're defining it on, #{model_class.name}, seems to have no column
+named that.
+
+It has columns named: #{model_class.columns.map(&:name).sort_by(&:to_s).join(", ")}.}
+        end
+
+        unless out.type == :binary || out.text? || out.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
+          raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
+that column (on model #{model_class.name}) isn't of a type that accepts text.
+That column is of type: #{out.type.inspect}.}
+        end
+
+        out
+      end
+
+      # This creates a "fake" column that we can use if the underlying table doesn't exist yet.
+      def create_temporary_fake_column(column_name)
+        ::FlexColumns::Definition::FakeColumn.new(column_name)
       end
 
       # Check all of our options to make sure they're correct. This is pretty defensive programming, but it is SO

@@ -1,5 +1,9 @@
 # `flex_columns` Changelog
 
+## 1.0.7, 2014-04-07
+
+* Fixed an issue where, if you defined a model class when its table didn't exist, and then created its table while the Ruby process was still running, you still couldn't access any flex-column attributes &mdash; because we would simply skip defining them entirely if the table didn't exist. Now, we define them, assuming the columns exist and are of type `:string` (and `null`able) if the table doesn't exist, and replace them with the actual column definition once the table exists. (You need to call `.reset_column_information` on the model class to make this happen, just as you do with any changes to the underlying table of an ActiveRecord model.)
+
 ## 1.0.6, 2014-04-07
 
 * Fixed an issue where Float::INFINITY and Float::NaN could not be stored in a flex column.

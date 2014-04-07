@@ -17,6 +17,10 @@ module FlexColumns
     included do
       before_validation :_flex_columns_before_validation!
       before_save :_flex_columns_before_save!
+
+      class << self
+        alias_method_chain :reset_column_information, :flex_columns
+      end
     end
 
     # Before we save this model, make sure each flex column has a chance to serialize itself up and assign itself
@@ -133,6 +137,12 @@ module FlexColumns
     end
 
     module ClassMethods
+      def reset_column_information_with_flex_columns
+        reset_column_information_without_flex_columns
+        _flex_column_classes.each { |c| c.reset_column_information }
+        _flex_columns_redefine_all_methods!
+      end
+
       # Does this class have any flex columns? If this module has been included into a class, then the answer is true.
       def has_any_flex_columns?
         true
@@ -177,8 +187,6 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
       # FlexColumns::Definition::FlexColumnContentsClass#setup!, and so can contain any of the options that that method
       # accepts. The block, if passed, will be evaluated in the context of the generated class.
       def flex_column(flex_column_name, options = { }, &block)
-        return unless table_exists?
-
         flex_column_name = _flex_column_normalize_name(flex_column_name)
 
         new_class = Class.new(FlexColumns::Contents::FlexColumnContentsBase)
@@ -191,6 +199,12 @@ it has flex columns named: #{_all_flex_column_names.sort_by(&:to_s).inspect}.}
           _flex_column_object_for(flex_column_name)
         end
 
+        _flex_columns_redefine_all_methods!
+      end
+
+      # Defines, or redefines, all methods on the dynamic-methods module associated with this model. This gets called
+      # whenever we define a new flex column, or if you call .reset_column_information on the associated model.
+      def _flex_columns_redefine_all_methods!
         _flex_column_dynamic_methods_module.remove_all_methods!
         _flex_column_classes.each(&:sync_methods!)
       end

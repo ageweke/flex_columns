@@ -140,8 +140,6 @@ describe "FlexColumns performance" do
         end
       end
 
-      ::User.reset_column_information
-
       define_model_class(:User, 'flexcols_spec_users') do
         flex_column :text_attrs_nonnull do
           field :aaa

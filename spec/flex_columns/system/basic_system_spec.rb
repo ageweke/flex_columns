@@ -308,6 +308,7 @@ describe "FlexColumns basic operations" do
           field :bbb
         end
       end
+      define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
 
       ::User.reset_column_information
 

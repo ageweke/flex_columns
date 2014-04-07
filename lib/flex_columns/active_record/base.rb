@@ -60,8 +60,7 @@ module FlexColumns
 
           reason = nil
 
-          reason ||= :column if columns.detect { |c| c.name.to_s == base_name }
-          # return false if method_defined?(base_name) || method_defined?("#{base_name}=")
+          reason ||= :column if table_exists? && columns.detect { |c| c.name.to_s == base_name }
           reason ||= :instance_method if instance_methods(false).map(&:to_s).include?(base_name.to_s)
 
           (! reason)

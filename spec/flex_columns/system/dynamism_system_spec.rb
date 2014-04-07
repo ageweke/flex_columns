@@ -59,6 +59,47 @@ describe "FlexColumns basic operations" do
     f2_again.att2.should == "the_att2"
   end
 
+  it "should handle the case where a table comes into existence after being defined, and properly respect things like :binary and compression" do
+    migrate do
+      drop_table :flexcols_coming_into_existence rescue nil
+    end
+
+    class ::Foo < ::ActiveRecord::Base
+      self.table_name = 'flexcols_coming_into_existence'
+
+      flex_column :foo do
+        field :att1
+        field :att2
+      end
+    end
+
+    migrate do
+      create_table :flexcols_coming_into_existence do |t|
+        t.string :name
+        t.binary :foo
+      end
+    end
+
+    Foo.reset_column_information
+
+    f2 = Foo.new
+    f2.att1 = "the_att1"
+    f2.att2 = "the_att2" * 1000
+    f2.save!
+
+    f2_again = Foo.find(f2.id)
+    f2_again.att1.should == "the_att1"
+    f2_again.att2.should == "the_att2" * 1000
+
+    class ::FooBackdoor < ActiveRecord::Base
+      self.table_name = 'flexcols_coming_into_existence'
+    end
+
+    f2_backdoor = ::FooBackdoor.find(f2.id)
+    data = f2_backdoor.foo
+    data.should match(/^FC:01,1,/i)
+  end
+
   it "should let you redefine flex columns, and obey the new settings" do
     class ::User < ::ActiveRecord::Base
       self.table_name = 'flexcols_spec_users'

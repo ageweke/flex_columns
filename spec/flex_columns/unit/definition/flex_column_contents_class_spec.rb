@@ -10,6 +10,7 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     @klass.send(:extend, FlexColumns::Definition::FlexColumnContentsClass)
 
     @model_class = double("model_class")
+    allow(@model_class).to receive(:table_exists?).with().and_return(true)
     allow(@model_class).to receive(:kind_of?).with(Class).and_return(true)
     allow(@model_class).to receive(:has_any_flex_columns?).with().and_return(true)
     allow(@model_class).to receive(:name).with().and_return(:mcname)
@@ -121,6 +122,12 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
       e.message.should match(/integer/i)
     end
 
+    it "should work if the table doesn't exist" do
+      allow(@model_class).to receive(:table_exists?).with().and_return(false)
+      allow(@model_class).to receive(:columns).and_raise(StandardError) # to make sure we don't touch this
+      @klass.setup!(@model_class, :foo) { }
+    end
+
     it "should work on a text column" do
       @klass.setup!(@model_class, :foo) { }
     end
@@ -201,6 +208,41 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
       it "should reject incompatible :visibility and :delegate options" do
         should_reject(:visibility => :private, :delegate => :public)
       end
+    end
+  end
+
+  describe "reset_column_information" do
+    it "should still generate a fake column if the table still doesn't exist" do
+      allow(@model_class).to receive(:table_exists?).with().and_return(false)
+      @klass.setup!(@model_class, :bar) { }
+      c = @klass.column
+      c.name.should == :bar
+      c.type.should == :string
+      c.null.should == true
+
+      @klass.reset_column_information
+      c = @klass.column
+      c.name.should == :bar
+      c.type.should == :string
+      c.null.should == true
+    end
+
+    it "should pull a real column if the table does exist" do
+      allow(@column_bar).to receive(:null).with().and_return(false)
+
+      allow(@model_class).to receive(:table_exists?).with().and_return(false)
+      @klass.setup!(@model_class, :bar) { }
+      c = @klass.column
+      c.name.should == :bar
+      c.type.should == :string
+      c.null.should == true
+
+      allow(@model_class).to receive(:table_exists?).with().and_return(true)
+      @klass.reset_column_information
+      c = @klass.column
+      c.name.should == :bar
+      c.type.should == :binary
+      c.null.should == false
     end
   end
 
