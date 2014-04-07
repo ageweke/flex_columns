@@ -47,6 +47,7 @@ describe "FlexColumns basic operations" do
       end
     end
 
+    reset_schema_cache!(Foo)
     Foo.reset_column_information
 
     f2 = Foo.new
@@ -80,6 +81,7 @@ describe "FlexColumns basic operations" do
       end
     end
 
+    reset_schema_cache!(Foo)
     Foo.reset_column_information
 
     f2 = Foo.new

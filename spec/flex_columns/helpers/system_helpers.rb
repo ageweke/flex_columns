@@ -14,6 +14,14 @@ module FlexColumns
         end
       end
 
+      def reset_schema_cache!(model)
+        if model.connection.respond_to?(:schema_cache)
+          model.connection.schema_cache.clear!
+        elsif model.connection.respond_to?(:clear_cache!)
+          model.connection.clear_cache!
+        end
+      end
+
       def define_model_class(name, table_name, &block)
         model_class = Class.new(::ActiveRecord::Base)
         ::Object.send(:remove_const, name) if ::Object.const_defined?(name)

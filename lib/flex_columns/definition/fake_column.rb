@@ -20,6 +20,10 @@ module FlexColumns
       def type
         :string
       end
+
+      def limit
+        nil
+      end
     end
   end
 end
