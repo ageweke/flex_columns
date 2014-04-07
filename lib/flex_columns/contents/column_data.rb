@@ -186,7 +186,7 @@ module FlexColumns
         deserialize_if_necessary!
 
         json_hash = to_json_hash
-        as_string = json_hash.to_json
+        as_string = JSON.generate(json_hash, :allow_nan => true)
         as_string = as_string.encode(Encoding::UTF_8) if as_string.respond_to?(:encode)
 
         as_string
@@ -351,7 +351,7 @@ module FlexColumns
       # Parses JSON. This just adds exception handling that tells you exactly where the failure was.
       def parse_json(json)
         out = begin
-          JSON.parse(json)
+          JSON.parse(json, :allow_nan => true)
         rescue ::JSON::ParserError => pe
           raise FlexColumns::Errors::UnparseableJsonInDatabaseError.new(data_source, json, pe)
         end

@@ -335,5 +335,21 @@ describe "FlexColumns basic operations" do
       parsed = JSON.parse(user_bd.user_attributes)
       parsed.keys.sort.should == %w{bbb}.sort
     end
+
+    it "should allow serializing Float::INFINITY and Float::NaN" do
+      infinity = if defined?(Float::INFINITY) then Float::INFINITY else (1.0 / 0.0) end
+      nan = if defined?(Float::NaN) then Float::NaN else (0.0 / 0.0) end
+
+      user = ::User.new
+      user.name = 'User 1'
+      user.wants_email = { 'foo' => 'bar', 'bar' => infinity, 'baz' => nan, 'quux' => -infinity }
+      user.save!
+
+      user_again = ::User.find(user.id)
+      user_again.wants_email['foo'].should == 'bar'
+      user_again.wants_email['bar'].should == infinity
+      user_again.wants_email['baz'].should be_nan
+      user_again.wants_email['quux'].should == -infinity
+    end
   end
 end

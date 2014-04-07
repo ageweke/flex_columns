@@ -1,5 +1,9 @@
 # `flex_columns` Changelog
 
+## 1.0.6, 2014-04-07
+
+* Fixed an issue where Float::INFINITY and Float::NaN could not be stored in a flex column.
+
 ## 1.0.5, 2014-04-03
 
 * Fixed an issue where boolean fields would fail to validate if `:null => false` was passed and their value was `false`.
