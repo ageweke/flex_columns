@@ -130,8 +130,8 @@ describe "FlexColumns performance" do
 
     before :each do
       migrate do
-        drop_table :flexcols_spec_users rescue nil
-        create_table :flexcols_spec_users do |t|
+        drop_table :flexcols_spec_users_2 rescue nil
+        create_table :flexcols_spec_users_2 do |t|
           t.string :name, :null => false
           t.text :text_attrs_nonnull, :null => false
           t.text :text_attrs_null
@@ -140,9 +140,9 @@ describe "FlexColumns performance" do
         end
       end
 
-      reset_schema_cache!(::User) if defined?(::User)
+      # reset_schema_cache!(::User) if defined?(::User)
 
-      define_model_class(:User, 'flexcols_spec_users') do
+      define_model_class(:User2, 'flexcols_spec_users_2') do
         flex_column :text_attrs_nonnull do
           field :aaa
         end
@@ -157,9 +157,9 @@ describe "FlexColumns performance" do
         end
       end
 
-      define_model_class(:UserBackdoor, 'flexcols_spec_users') { }
+      define_model_class(:User2Backdoor, 'flexcols_spec_users_2') { }
 
-      ::UserBackdoor.reset_column_information
+      ::User2Backdoor.reset_column_information
     end
 
     it "should be smart enough to store an empty JSON string to the database, if necessary, if the column is non-NULL" do
@@ -171,11 +171,11 @@ describe "FlexColumns performance" do
       # those circumstances, rather than trying to work around this (pretty broken) behavior that's also a pretty rare
       # edge case for us.
       unless defined?(RUBY_ENGINE) && RUBY_ENGINE == 'jruby' && @dh.database_type == :mysql
-        my_user = ::User.new
+        my_user = ::User2.new
         my_user.name = 'User 1'
         my_user.save!
 
-        user_bd = ::UserBackdoor.find(my_user.id)
+        user_bd = ::User2Backdoor.find(my_user.id)
         user_bd.name.should == 'User 1'
         user_bd.text_attrs_nonnull.should == ""
         user_bd.text_attrs_null.should == nil
@@ -185,7 +185,7 @@ describe "FlexColumns performance" do
     end
 
     it "should store NULL or the empty string in the database, as appropriate, if there's no data left any more" do
-      my_user = ::User.new
+      my_user = ::User2.new
       my_user.name = 'User 1'
       my_user.aaa = 'aaa1'
       my_user.bbb = 'bbb1'
@@ -193,21 +193,21 @@ describe "FlexColumns performance" do
       my_user.ddd = 'ddd1'
       my_user.save!
 
-      user_bd = ::UserBackdoor.find(my_user.id)
+      user_bd = ::User2Backdoor.find(my_user.id)
       user_bd.name.should == 'User 1'
       check_text_column_data(user_bd.text_attrs_nonnull, 'aaa', 'aaa1')
       check_text_column_data(user_bd.text_attrs_null, 'bbb', 'bbb1')
       check_binary_column_data(user_bd.binary_attrs_nonnull, 'ccc', 'ccc1')
       check_binary_column_data(user_bd.binary_attrs_null, 'ddd', 'ddd1')
 
-      user_again = ::User.find(my_user.id)
+      user_again = ::User2.find(my_user.id)
       user_again.aaa = nil
       user_again.bbb = nil
       user_again.ccc = nil
       user_again.ddd = nil
       user_again.save!
 
-      user_bd_again = ::UserBackdoor.find(my_user.id)
+      user_bd_again = ::User2Backdoor.find(my_user.id)
       user_bd_again.name.should == 'User 1'
       user_bd_again.text_attrs_nonnull.should == ""
       user_bd_again.text_attrs_null.should == nil

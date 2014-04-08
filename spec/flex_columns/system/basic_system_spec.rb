@@ -280,8 +280,6 @@ describe "FlexColumns basic operations" do
         user.name = 'User 1'
         user.wants_email = [ 1, 2, 3 ]
 
-        $stderr.puts "ATTRIBUTES: #{user.attributes.keys.sort.inspect}"
-
         user_json = JSON.dump(user)
         parsed = JSON.parse(user_json)
 
