@@ -19,93 +19,101 @@ Current build status: ![Current Build Status](https://api.travis-ci.org/ageweke/
 
 ### Installing flex_columns
 
-    # Gemfile
-    gem 'flex_columns'
+```ruby
+# Gemfile
+gem 'flex_columns'
+```
 
 ### Example
 
 As an example &mdash; assume table `users` has a `CLOB` column `user_attributes`:
 
-    class User < ActiveRecord::Base
-      ...
-      flex_column :user_attributes do
-        field :locale
-        field :comments_display_mode
-        field :custom_page_color
-        field :nickname
-      end
-      ...
-    end
+```ruby
+class User < ActiveRecord::Base
+  ...
+  flex_column :user_attributes do
+    field :locale
+    field :comments_display_mode
+    field :custom_page_color
+    field :nickname
+  end
+  ...
+end
+```
 
 You can now write code like:
 
-    user = User.find(...)
-    user.locale = :fr_FR
+```ruby
+user = User.find(...)
+user.locale = :fr_FR
 
-    case user.comments_display_mode
-    when 'threaded' then ...
-    when 'linear' then ...
-    end
+case user.comments_display_mode
+when 'threaded' then ...
+when 'linear' then ...
+end
+```
 
 ### Robust Example
 
 As a snapshot of all possibilities:
 
-    # Assume we're storing the JSON in a wholly separate table, so we don't have to load it unless we need it...
-    class UserDetails < ActiveRecord::Base
-      flex_column :user_attributes,
-        :compress => 100,        # try compressing any JSON >= 100 bytes, but only store compressed if it's smaller
-        :visibility => :private, # attributes are private by default
-        :prefix => :ua,          # sets a prefix for methods delegated from the outer class
-        :unknown_fields => :delete # if DB contains fields not declared here, delete those keys when saving
-      do
-        # automatically adds validations requiring a string that's non-nil
-        field :locale, :string, :null => false
-        # automatically adds validations requiring the value to be one of the listed values
-        field :comments_display_mode, :enum => %w{threaded linear collapsed}
-        # in the JSON in the database, the key will be 'cpc', not 'custom_page_color', to save space
-        field :custom_page_color, :json => :cpc
-        field :nickname
-        field :visit_count, :integer
+```ruby
+# Assume we're storing the JSON in a wholly separate table, so we don't have to load it unless we need it...
+class UserDetails < ActiveRecord::Base
+  flex_column :user_attributes,
+    :compress => 100,        # try compressing any JSON >= 100 bytes, but only store compressed if it's smaller
+    :visibility => :private, # attributes are private by default
+    :prefix => :ua,          # sets a prefix for methods delegated from the outer class
+    :unknown_fields => :delete # if DB contains fields not declared here, delete those keys when saving
+  do
+    # automatically adds validations requiring a string that's non-nil
+    field :locale, :string, :null => false
+    # automatically adds validations requiring the value to be one of the listed values
+    field :comments_display_mode, :enum => %w{threaded linear collapsed}
+    # in the JSON in the database, the key will be 'cpc', not 'custom_page_color', to save space
+    field :custom_page_color, :json => :cpc
+    field :nickname
+    field :visit_count, :integer
 
-        # Use the full gamut of Rails validations -- they will run automatically when saving a User
-        validates :custom_page_color, :format => { :with => /^\#[0-9a-f]{6}/i, :message => 'must be a valid HTML hex color' }
+    # Use the full gamut of Rails validations -- they will run automatically when saving a User
+    validates :custom_page_color, :format => { :with => /^\#[0-9a-f]{6}/i, :message => 'must be a valid HTML hex color' }
 
-        # Define custom methods...
-        def french?
-          [ :fr_FR, :fr_CA ].include?(locale)
-        end
-
-        # +super+ works correctly in all cases
-        def visit_count
-          super || 0
-        end
-
-        # You can also access attributes using Hash syntax
-        def increment_visit_count!
-          self[:visit_count] += 1
-        end
-      end
+    # Define custom methods...
+    def french?
+      [ :fr_FR, :fr_CA ].include?(locale)
     end
 
-    # And now transparently include it into our User class...
-    class User < ActiveRecord::Base
-      has_one :user_details
-
-      include_flex_columns_from :user_details
+    # +super+ works correctly in all cases
+    def visit_count
+      super || 0
     end
+
+    # You can also access attributes using Hash syntax
+    def increment_visit_count!
+      self[:visit_count] += 1
+    end
+  end
+end
+
+# And now transparently include it into our User class...
+class User < ActiveRecord::Base
+  has_one :user_details
+
+  include_flex_columns_from :user_details
+end
 
 ...and then you can write code like so:
 
-    user = User.find(...)
+user = User.find(...)
 
-    user.user_attributes.french?   # access directly from the column
-    user.ua_visit_count            # :prefix prefixed the delegated method names with the desired string
+user.user_attributes.french?   # access directly from the column
+user.ua_visit_count            # :prefix prefixed the delegated method names with the desired string
 
-    user.visit_count = 'foo'       # sets an invalid value
-    user.save                      # => false; user isn't valid
-    user.errors.keys               # => :'user_attributes.visit_count'
-    user.errors[:'user_attributes.visit_count'] # => [ 'must be a number' ]
+user.visit_count = 'foo'       # sets an invalid value
+user.save                      # => false; user isn't valid
+user.errors.keys               # => :'user_attributes.visit_count'
+user.errors[:'user_attributes.visit_count'] # => [ 'must be a number' ]
+```
 
 There's lots more, too:
 
