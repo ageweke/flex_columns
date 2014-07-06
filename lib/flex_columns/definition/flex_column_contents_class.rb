@@ -274,22 +274,15 @@ module FlexColumns
       # Given the name of a column, finds the column on the model and makes sure it complies with our
       # requirements for columns we can store data in.
       #
-      # However, if the underlying table doesn't currently exist, this creates a "fake" column object and returns it;
-      # this fake column object responds to just enough methods that we can use it successfully in this gem. This is
-      # used so that we can define flex columns on a model for a table that doesn't exist yet (typically, because it
-      # hasn't been migrated in yet), and effectively upgrade it using .reset_column_information, above, when it
-      # does exist.
+      # However, if the underlying table doesn't currently exist, or the underlying column doesn't currently exit,
+      # this creates a "fake" column object and returns it; this fake column object responds to just enough methods
+      # that we can use it successfully in this gem. This is used so that we can define flex columns on a model for
+      # a table that doesn't exist yet (typically, because it hasn't been migrated in yet), and effectively upgrade
+      # it using .reset_column_information, above, when it does exist.
       def find_column(column_name)
         return create_temporary_fake_column(column_name) if (! @model_class.table_exists?)
-
         out = model_class.columns.detect { |c| c.name.to_s == column_name.to_s }
-        unless out
-          raise FlexColumns::Errors::NoSuchColumnError, %{You're trying to define a flex column #{column_name.inspect}, but
-the model you're defining it on, #{model_class.name}, seems to have no column
-named that.
-
-It has columns named: #{model_class.columns.map(&:name).sort_by(&:to_s).join(", ")}.}
-        end
+        return create_temporary_fake_column(column_name) if (! out)
 
         unless out.type == :binary || out.text? || out.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
           raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but

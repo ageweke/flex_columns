@@ -106,15 +106,6 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
       lambda { @klass.setup!(@model_class, 'foo') { } }.should raise_error(ArgumentError)
     end
 
-    it "should raise a nice error if passed something that isn't a column on the model" do
-      e = capture_exception(FlexColumns::Errors::NoSuchColumnError) { @klass.setup!(@model_class, :unknowncolumn) { } }
-      e.message.should match(/quux/i)
-      e.message.should match(/foo/i)
-      e.message.should match(/bar/i)
-      e.message.should match(/baz/i)
-      e.message.should match(/mcname/i)
-    end
-
     it "should raise a nice error if passed a column of the wrong type" do
       e = capture_exception(FlexColumns::Errors::InvalidColumnTypeError) { @klass.setup!(@model_class, :baz) { } }
       e.message.should match(/mcname/i)
@@ -125,6 +116,13 @@ describe FlexColumns::Definition::FlexColumnContentsClass do
     it "should work if the table doesn't exist" do
       allow(@model_class).to receive(:table_exists?).with().and_return(false)
       allow(@model_class).to receive(:columns).and_raise(StandardError) # to make sure we don't touch this
+      @klass.setup!(@model_class, :foo) { }
+    end
+
+    it "should work if the column doesn't exist" do
+      allow(@model_class).to receive(:table_exists?).with().and_return(true)
+      allow(@model_class).to receive(:columns).and_return([ @column_bar, @column_baz, @column_quux, @column_ajson ])
+
       @klass.setup!(@model_class, :foo) { }
     end
 
