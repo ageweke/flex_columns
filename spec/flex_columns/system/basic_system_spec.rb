@@ -280,7 +280,7 @@ describe "FlexColumns basic operations" do
         user.name = 'User 1'
         user.wants_email = [ 1, 2, 3 ]
 
-        user_json = JSON.dump(user)
+        user_json = JSON.dump(user.as_json)
         parsed = JSON.parse(user_json)
 
         # ActiveRecord::Base.include_root_in_json may default to different things in different versions of
