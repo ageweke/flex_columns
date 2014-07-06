@@ -11,8 +11,8 @@ while relying on the most reliable, manageable, proven data engines out there.
 
 Supported platforms:
 
-* Ruby 1.8.7, 1.9.3, 2.0.0, and JRuby 1.7.6.
-* ActiveRecord 3.0.20, 3.1.12, 3.2.16, and 4.0.2. (Should be compatible with future versions, as well...just sits on top of the public API of ActiveRecord.)
+* Ruby 1.8.7, 1.9.3, 2.0.0, 2.1.2, and JRuby 1.7.12.
+* ActiveRecord 3.0.20, 3.1.12, 3.2.19, 4.0.8, and 4.1.4. (Should be compatible with future versions, as well...just sits on top of the public API of ActiveRecord.)
 * Tested against MySQL, PostgreSQL, and SQLite 3. (Should be compatible with all RDBMSes supported by ActiveRecord.)
 
 Current build status: ![Current Build Status](https://api.travis-ci.org/ageweke/flex_columns.png?branch=master)
