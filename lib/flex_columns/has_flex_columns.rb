@@ -81,7 +81,8 @@ module FlexColumns
     # in ActiveRecord 3.0.x.
     def as_json(options = { })
       flex_column_names = self.class._all_flex_column_names
-      out = super(:except => flex_column_names)
+      except = ([options[:except] || []] + flex_column_names).flatten
+      out = super(options.merge :except => except)
 
       flex_columns_hash = { }
       flex_column_names.each do |column_name|
