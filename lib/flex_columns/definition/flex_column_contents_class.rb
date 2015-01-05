@@ -284,7 +284,7 @@ module FlexColumns
         out = model_class.columns.detect { |c| c.name.to_s == column_name.to_s }
         return create_temporary_fake_column(column_name) if (! out)
 
-        unless out.type == :binary || out.text? || out.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
+        unless [:binary, :string, :text].include?(out.type) || out.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
           raise FlexColumns::Errors::InvalidColumnTypeError, %{You're trying to define a flex column #{column_name.inspect}, but
 that column (on model #{model_class.name}) isn't of a type that accepts text.
 That column is of type: #{out.type.inspect}.}
