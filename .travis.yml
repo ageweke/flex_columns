@@ -59,3 +59,11 @@ matrix:
         # Rails 4.2.0 has a bug with PostgreSQL and binary columns
         # (https://github.com/rails/rails/pull/17680)
         -   env: FLEX_COLUMNS_AR_TEST_VERSION=4.2.0 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=postgres
+        # As of this writing (2015-02-18), activerecord-jdbc doesn't support ActiveRecord 4.2.x
+        # completely.
+        -   rvm: jruby-1.7.19
+            env: FLEX_COLUMNS_AR_TEST_VERSION=4.2.0 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=mysql
+        -   rvm: jruby-1.7.19
+            env: FLEX_COLUMNS_AR_TEST_VERSION=4.2.0 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=postgres
+        -   rvm: jruby-1.7.19
+            env: FLEX_COLUMNS_AR_TEST_VERSION=4.2.0 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=sqlite
