@@ -55,3 +55,7 @@ matrix:
             env: FLEX_COLUMNS_AR_TEST_VERSION=3.1.12 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=postgres
         -   rvm: 2.0.0-p598
             env: FLEX_COLUMNS_AR_TEST_VERSION=3.1.12 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=sqlite
+    allow_failures:
+        # Rails 4.2.0 has a bug with PostgreSQL and binary columns
+        # (https://github.com/rails/rails/pull/17680)
+        -   env: FLEX_COLUMNS_AR_TEST_VERSION=4.2.0 FLEX_COLUMNS_TRAVIS_CI_DATABASE_TYPE=postgres

@@ -45,13 +45,21 @@ Gem::Specification.new do |s|
 
   s.add_dependency "activesupport", ">= 3.0", "<= 4.99.99"
 
+  # i18n released an 0.7.0 that's incompatible with Ruby 1.8.
+  if RUBY_VERSION =~ /^1\.8\./
+    s.add_development_dependency 'i18n', '< 0.7.0'
+  end
+
   require File.expand_path(File.join(File.dirname(__FILE__), 'spec', 'flex_columns', 'helpers', 'database_helper'))
   database_gem_name = FlexColumns::Helpers::DatabaseHelper.maybe_database_gem_name
 
   # Ugh. Later versions of the 'mysql2' gem are incompatible with AR 3.0.x; so, here, we explicitly trap that case
   # and use an earlier version of that Gem.
   if database_gem_name && database_gem_name == 'mysql2' && ar_version && ar_version =~ /^3\.0\./
-    s.add_development_dependency('mysql2', '~> 0.2.0')
+    s.add_development_dependency(database_gem_name, '~> 0.2.0')
+  # The 'pg' gem removed Ruby 1.8 compatibility as of 0.18.1.
+  elsif database_gem_name && database_gem_name == 'pg' && RUBY_VERSION =~ /^1\.8\./
+    s.add_development_dependency(database_gem_name, '< 0.18.1')
   else
     s.add_development_dependency(database_gem_name)
   end
