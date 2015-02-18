@@ -1,5 +1,10 @@
 # `flex_columns` Changelog
 
+## 1.0.9, 2015-02-18
+
+* Full support for ActiveRecord 4.2.x.
+* Bumped versions of Rails and Ruby that we test against to much more up-to-date ones.
+
 ## 1.0.8, 2014-07-06
 
 * Fixed an issue where you couldn't migrate a flex_column into existence with a migration &mdash; because if you
