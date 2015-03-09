@@ -82,6 +82,29 @@ describe "FlexColumns including" do
       preferences.attribs1.bar.should == 'bar1'
     end
 
+    it "should automatically save updates to the included flex columns" do
+      pending "does not work yet"
+
+      define_model_class(:User, 'flexcols_spec_users') do
+        has_one :preference, :class_name => 'UserPreference', :autosave => true
+
+        include_flex_columns_from :preference
+      end
+
+      user = ::User.new
+      user.name = 'User 1'
+      user.foo = 123
+      user.save!
+
+      user_again = ::User.find(user.id)
+      user_again.foo.should == 123
+      user_again.foo = 234
+      user_again.save!
+
+      user_yet_again = ::User.find(user_again.id)
+      user_yet_again.foo.should == 234
+    end
+
     it "should allow turning off delegation, but should still include base names, prefixed as needed" do
       define_model_class(:User, 'flexcols_spec_users') do
         has_one :preference, :class_name => 'UserPreference'
