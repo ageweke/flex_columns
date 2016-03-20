@@ -26,6 +26,7 @@ module FlexColumns
 
         storage = case column.type
         when :binary, :text, :json then column.type
+        when :jsonb then :json
         when :string then :text
         else raise "Unknown storage type: #{column.type.inspect}"
         end
@@ -297,6 +298,8 @@ That column is of type: #{out.type.inspect}.}
         if column.type == :binary || column.type == :text || column.type == :string
           true
         elsif column.sql_type == "json" # for PostgreSQL >= 9.2, which has a native JSON data type
+          true
+        elsif column.sql_type == "jsonb" # for PostgreSQL >= 9.4, which has a native JSONB data type
           true
         else
           false
